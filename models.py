@@ -1,4 +1,5 @@
 import constants
+import random
 
 # Models
 
@@ -6,13 +7,11 @@ import constants
 class Player:
     def __init__(self, name):
         self.name = name
-        self.maxThirst = constants.playerMaxThirst
-        self.maxHunger = constants.playerMaxHunger
-        self.inventorySize = constants.playerInventorySize
-        self.thirst = self.maxThirst
-        self.hunger = self.maxHunger
-        self.inventory = [None] * self.inventorySize
-        print('New player "' + self.name + '" created.')
+        self.thirst = constants.playerMaxThirst
+        self.hunger = constants.playerMaxHunger
+        self.inventory = [None] * constants.playerInventorySize
+        self.money = constants.startingCash
+        print('player "' + self.name + '" created.')
 
     def lowerThirst(self):
         self.thirst -= 1
@@ -22,13 +21,21 @@ class Player:
         self.hunger -= 1
         print('hunger')
 
+    def eat(self, amount=constants.playerMaxHunger):
+        self.hunger = min(constants.playerMaxHunger, self.hunger+amount)
+        print('eating, hunger at: (' + self.hunger + '/' + constants.playerMaxHunger + ')')
+
+    def drink(self, amount=constants.playerMaxThirst):
+        self.thirst = min(constants.playerMaxThirst, self.thirst+amount)
+        print('drinking, thirst at: (' + self.hunger + '/' + constants.playerMaxHunger + ')')
+
     def addItem(self, item: 'Item', slot=0):
-        if (-1 < slot < self.inventorySize) and (self.inventory[slot] == None):
+        if (-1 < slot < constants.playerInventorySize) and (self.inventory[slot] == None):
             self.inventory[slot] = item
             print('item added: ' + item.name)
 
     def removeItem(self, slot):
-        if (-1 < slot < self.inventorySize) and (self.inventory[slot] != None):
+        if (-1 < slot < constants.playerInventorySize) and (self.inventory[slot] != None):
             toDel: 'Item' = self.inventory[slot]
             self.inventory[slot] = None
             print('item removed: ' + toDel.name)
@@ -48,7 +55,22 @@ class Item:
 
 # A place to put items into
 class Container:
-    pass
+    def __init__(self, name, size):
+        self.name = name
+        self.size = size
+        self.spots = [None] * size
+
+    def addItem(self, item: 'Item', slot=0):
+        if (-1 < slot < self.size) and (self.spots[slot] == None):
+            self.spots[slot] = item
+            print('item ' + item.name + ' added to ' + self.name)
+
+    def removeItem(self, slot):
+        if (-1 < slot < self.size) and (self.spots[slot] != None):
+            toDel: 'Item' = self.spots[slot]
+            self.spots[slot] = None
+            print('item ' + toDel.name + ' removed from ' + self.name)
+            return toDel
 
 # All the different areas in the ground segment
 class Area:
@@ -56,7 +78,13 @@ class Area:
 
 # Buying rooms and equipment for the station
 class ResearchCenter(Area):
-    pass
+    def __init__(self):
+        self.level = 0
+        self.expansions = constants.upgradeExpansions(0)
+
+    def upgrade(self):
+        self.level += 1
+        self.expansions += constants.upgradeExpansions(self.level)
 
 # For checking the condition of the station
 class MissionControl(Area):
@@ -64,7 +92,15 @@ class MissionControl(Area):
 
 # Ordering food for the missions
 class Kitchen(Area):
-    pass
+    def __init__(self):
+        self.selection = constants.kitchenSelection
+
+    def updatePrices(self):
+        for i, item in enumerate(self.selection):
+            if (random.random() > 0.9):
+                newPrice = round(item[2] + random.gauss(0,1))
+                self.selection[i] = [item[0], item[1], newPrice]
+                print('Food price upgrade: ' + item[0] + ' costs now ' + newPrice)
 
 # big storage area
 class Storage(Area):

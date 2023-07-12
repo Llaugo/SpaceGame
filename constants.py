@@ -4,6 +4,7 @@
 playerInventorySize = 10
 playerMaxThirst = 100
 playerMaxHunger = 100
+startingCash = 1000
 
 
 # Item stats
@@ -16,4 +17,30 @@ itemStackSize = {'empty bottle': 5,
                  'potato': 16,
                  'watermelon': 1}
 
+# Research Center availability
+upgradeExpansions = [['small storage', 'small study', 'small solar panel'],
+                     ['small water tank', 'small science instrument'],
+                     ['medium storage', 'docking system'],
+                     ['medium solar panel', 'small satellite dish'],
+                     ['medium study', 'medium water tank'],
+                     ['corridor', 'framework'],
+                     ['long study', 'medium science instrument'],
+                     ['medium satellite dish', 'small greenhouse'],
+                     ['large storage'],
+                     ['large study'],
+                     ['water recycler'],
+                     ['large solar panel'],
+                     ['long corridor', 'long framework'],
+                     ['medium greenhouse'],
+                     ['large satellite dish'],
+                     ['large water tank']]
+
+# Kitchens selection of buyable foods with name, amount and cost
+kitchenSelection = [['onion', 16, 10],
+                    ['potato', 16, 16],
+                    ['watermelon', 1, 8],
+                    ['ice cream', 5, 12],
+                    ['food ration', 10, 40],
+                    ['fizzy drink', 5, 10],
+                    ['water bottle', 5, 2]]
 
