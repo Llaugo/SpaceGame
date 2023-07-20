@@ -1,17 +1,34 @@
+import pygame
 import constants
 import random
 
 # Models
 
 # User controlled player
-class Player:
+class Player(pygame.sprite.Sprite):
     def __init__(self, name):
+        super().__init__()
+        pic = pygame.image.load('images/steve.png').convert()
+        self.image = pygame.transform.rotozoom(pic,0,0.3)
+        self.rect = self.image.get_rect(center = (constants.worldWidth/2,(constants.worldHeight-0.1*constants.worldWidth)))
+
         self.name = name
         self.thirst = constants.playerMaxThirst
         self.hunger = constants.playerMaxHunger
         self.inventory = [None] * constants.playerInventorySize
         self.money = constants.startingCash
         print('player "' + self.name + '" created.')
+
+    def player_input(self, world):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_a] and (self.rect.x > 0.4*constants.worldWidth or world.rect.left >= 0) and self.rect.left > 0:
+            self.rect.x -= constants.playerSpeed
+        if keys[pygame.K_d] and (self.rect.x < 0.6*constants.worldWidth or world.rect.right <= constants.worldWidth) and self.rect.right < constants.worldWidth:
+            self.rect.x += constants.playerSpeed
+
+    def update(self, world):
+        self.player_input(world)
+    
 
     def lowerThirst(self):
         self.thirst -= 1
@@ -50,7 +67,23 @@ class Player:
             self.inventory[slot] = None
             print('item removed: ' + toDel.name)
             return toDel
-    
+
+
+class Background(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.image.load('images/astro.jpg').convert()
+        self.rect = self.image.get_rect(center = (200,200))
+
+    def bg_input(self, player: Player):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_d] and self.rect.right >= constants.worldWidth and player.rect.x >= 0.6*constants.worldWidth:
+            self.rect.x -= constants.playerSpeed
+        if keys[pygame.K_a] and self.rect.left <= 0 and player.rect.x <= 0.4*constants.worldWidth:
+            self.rect.x += constants.playerSpeed   
+
+    def update(self, player: Player):
+        self.bg_input(player) 
 
 
 # Non-playable characters that can be interacted with

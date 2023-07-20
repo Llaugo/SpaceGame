@@ -1,6 +1,12 @@
 # All the constant values and default values/names in the same file
 
+# World stats
+worldWidth = 960
+worldHeight = 540
+
+
 # Players stats
+playerSpeed = 3
 playerInventorySize = 10
 playerMaxThirst = 100
 playerMaxHunger = 100
