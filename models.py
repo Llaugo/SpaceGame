@@ -9,8 +9,9 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, name):
         super().__init__()
         pic = pygame.image.load('images/steve.png').convert()
-        self.image = pygame.transform.rotozoom(pic,0,0.3)
-        self.rect = self.image.get_rect(center = (constants.worldWidth/2,(constants.worldHeight-0.1*constants.worldWidth)))
+        self.image = pygame.transform.rotozoom(pic,0,0.25)
+        self.rect = self.image.get_rect(midbottom = (constants.worldWidth/2, constants.distFromGround))
+        self.gravity = 0
 
         self.name = name
         self.thirst = constants.playerMaxThirst
@@ -21,13 +22,22 @@ class Player(pygame.sprite.Sprite):
 
     def player_input(self, world):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_a] and (self.rect.x > 0.4*constants.worldWidth or world.rect.left >= 0) and self.rect.left > 0:
+        if keys[pygame.K_a] and (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.left > 5:
             self.rect.x -= constants.playerSpeed
-        if keys[pygame.K_d] and (self.rect.x < 0.6*constants.worldWidth or world.rect.right <= constants.worldWidth) and self.rect.right < constants.worldWidth:
+        if keys[pygame.K_d] and (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.right < constants.worldWidth-5:
             self.rect.x += constants.playerSpeed
+        if keys[pygame.K_SPACE] and self.rect.bottom >= constants.distFromGround:
+            self.gravity = -10
+
+    def apply_gravity(self):
+        self.gravity += 0.5
+        self.rect.y += int(self.gravity)
+        if self.rect.bottom >= constants.distFromGround:
+            self.rect.bottom = constants.distFromGround
 
     def update(self, world):
         self.player_input(world)
+        self.apply_gravity()
     
 
     def lowerThirst(self):
@@ -77,9 +87,9 @@ class Background(pygame.sprite.Sprite):
 
     def bg_input(self, player: Player):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_d] and self.rect.right >= constants.worldWidth and player.rect.x >= 0.6*constants.worldWidth:
+        if keys[pygame.K_d] and self.rect.right > constants.worldWidth and player.rect.center[0] >= 0.5*constants.worldWidth:
             self.rect.x -= constants.playerSpeed
-        if keys[pygame.K_a] and self.rect.left <= 0 and player.rect.x <= 0.4*constants.worldWidth:
+        if keys[pygame.K_a] and self.rect.left < 0 and player.rect.center[0] <= 0.5*constants.worldWidth:
             self.rect.x += constants.playerSpeed   
 
     def update(self, player: Player):
