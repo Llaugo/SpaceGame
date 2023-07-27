@@ -2,6 +2,7 @@ import pygame
 import constants
 import random
 
+
 # Models
 
 # User controlled player
@@ -82,18 +83,28 @@ class Player(pygame.sprite.Sprite):
 class Background(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load('images/astro.jpg').convert()
-        self.rect = self.image.get_rect(center = (200,200))
+        self.image = pygame.transform.rotozoom(pygame.image.load('images/preback.png').convert(),0,1.5)
+        self.rect = self.image.get_rect(center = (200,-500))
+        self.objects: list[pygame.sprite.Sprite] = []
+
+    def addObject(self, object): # OBJECTS MUST HAVE A DRAW() FUNCTION
+        self.objects.append(object)
 
     def bg_input(self, player: Player):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_d] and self.rect.right > constants.worldWidth and player.rect.center[0] >= 0.5*constants.worldWidth:
             self.rect.x -= constants.playerSpeed
+            for obj in self.objects:
+                obj.rect.x -= constants.playerSpeed
         if keys[pygame.K_a] and self.rect.left < 0 and player.rect.center[0] <= 0.5*constants.worldWidth:
-            self.rect.x += constants.playerSpeed   
+            self.rect.x += constants.playerSpeed
+            for obj in self.objects:
+                obj.rect.x += constants.playerSpeed
 
     def update(self, player: Player):
-        self.bg_input(player) 
+        self.bg_input(player)
+        for obj in self.objects:
+            obj.draw(player)
 
 
 # Non-playable characters that can be interacted with

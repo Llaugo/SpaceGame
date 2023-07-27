@@ -7,6 +7,7 @@ from models import *
 pygame.init()
 screen = pygame.display.set_mode((constants.worldWidth,constants.worldHeight))
 pygame.display.set_caption('Space Game')
+pygame.display.set_icon(pygame.image.load('images/astro.jpg'))
 clock = pygame.time.Clock()
 gamemode = 'menu' # Options: menu, game, pause
 
@@ -14,7 +15,7 @@ gamemode = 'menu' # Options: menu, game, pause
 class Button(pygame.sprite.Sprite):
     def __init__(self, pic, x, y, scale):
         super().__init__()
-        self.image = pygame.transform.rotozoom(pygame.image.load(pic).convert(),0,scale)
+        self.image = pygame.transform.rotozoom(pygame.image.load(pic).convert(), 0, scale)
         self.rect = self.image.get_rect(center = (x,y))
         self.clicked = False
         self.prevclick = 0 # Prevention for holding mouse and moving it over the button. previous event must be "not clicked".
@@ -36,6 +37,18 @@ class Button(pygame.sprite.Sprite):
         screen.blit(self.image, (self.rect.x, self.rect.y))
         return action
 
+# All interactable objects in the game
+class Interface(pygame.sprite.Sprite):
+    def __init__(self, pic, picW, x, y, scale):
+        self.open = False
+        self.image = pygame.transform.rotozoom(pygame.image.load(pic).convert(), 0, scale)
+        self.imageW = pygame.transform.rotozoom(pygame.image.load(picW).convert(), 0, scale)
+        self.rect = self.image.get_rect(center = (x,y))
+
+    def draw(self, player: Player):
+        if self.rect.colliderect(player.rect):
+            screen.blit(self.imageW, (self.rect.x, self.rect.y))
+        screen.blit(self.image, (self.rect.x, self.rect.y))
 
 # Menu screen
 menuBack = pygame.image.load('images/menu.jpg').convert()
@@ -45,9 +58,12 @@ menurect = menuBack.get_rect(center = (constants.worldWidth/2,constants.worldHei
 playButton = Button('images/play.png',480,100,0.2)
 menuButton = Button('images/menutxt.png',480,200,0.3)
 
+machine = Interface('images/machine.png','images/machine_white.png',-200,430,0.4)
 
+back = Background()
+back.addObject(machine)
 background = pygame.sprite.GroupSingle()
-background.add(Background())
+background.add(back)
 player = pygame.sprite.GroupSingle()
 player.add(Player('Steve'))
 

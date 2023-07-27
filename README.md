@@ -10,8 +10,7 @@ Build Status
 Just getting started. The game is not playable yet.
 
 Style
-I'm using MVC (model-view-controller) design pattern to structure the code.
-All the class definitions are in models.py
+I'm using MVC design pattern to structure the code.
 
 
 Licence
