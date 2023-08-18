@@ -9,8 +9,8 @@ import random
 class Player(pygame.sprite.Sprite):
     def __init__(self, name):
         super().__init__()
-        pic = pygame.image.load('images/steve.png').convert()
-        self.image = pygame.transform.rotozoom(pic,0,0.25)
+        pic = pygame.image.load('images/player.png').convert()
+        self.image = pygame.transform.rotozoom(pic,0,1.5)
         self.rect = self.image.get_rect(midbottom = (constants.worldWidth/2, constants.distFromGround))
         self.gravity = 0
 
@@ -21,6 +21,7 @@ class Player(pygame.sprite.Sprite):
         self.money = constants.startingCash
         print('player "' + self.name + '" created.')
 
+    # All keyboard inputs from players are handled here
     def player_input(self, world):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a] and (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.left > 5:
@@ -28,7 +29,7 @@ class Player(pygame.sprite.Sprite):
         if keys[pygame.K_d] and (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.right < constants.worldWidth-5:
             self.rect.x += constants.playerSpeed
         if keys[pygame.K_SPACE] and self.rect.bottom >= constants.distFromGround:
-            self.gravity = -10
+            self.gravity = -6
 
     def apply_gravity(self):
         self.gravity += 0.5
@@ -83,8 +84,8 @@ class Player(pygame.sprite.Sprite):
 class Background(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.transform.rotozoom(pygame.image.load('images/preback.png').convert(),0,1.5)
-        self.rect = self.image.get_rect(center = (200,-500))
+        self.image = pygame.transform.rotozoom(pygame.image.load('images/world/world.png').convert(),0,1.5)
+        self.rect = self.image.get_rect(center = (200,-1070))
         self.objects: list[pygame.sprite.Sprite] = []
 
     def addObject(self, object): # OBJECTS MUST HAVE A DRAW() FUNCTION

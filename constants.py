@@ -3,7 +3,7 @@
 # World stats
 worldWidth = 960
 worldHeight = 540
-distFromGround = worldHeight-0.05*worldWidth
+distFromGround = int(worldHeight-0.14*worldHeight)
 
 
 # Players stats

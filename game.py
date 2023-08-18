@@ -7,24 +7,26 @@ from models import *
 pygame.init()
 screen = pygame.display.set_mode((constants.worldWidth,constants.worldHeight))
 pygame.display.set_caption('Space Game')
-pygame.display.set_icon(pygame.image.load('images/astro.jpg'))
+pygame.display.set_icon(pygame.image.load('images/player.png'))
 clock = pygame.time.Clock()
 gamemode = 'menu' # Options: menu, game, pause
 
 
 class Button(pygame.sprite.Sprite):
-    def __init__(self, pic, x, y, scale):
+    def __init__(self, pic, picL, x, y, scale):
         super().__init__()
-        self.image = pygame.transform.rotozoom(pygame.image.load(pic).convert(), 0, scale)
+        self.image = pygame.transform.rotozoom(pygame.image.load(pic).convert_alpha(), 0, scale)
+        self.imageL = pygame.transform.rotozoom(pygame.image.load(picL).convert_alpha(), 0, scale)
         self.rect = self.image.get_rect(center = (x,y))
         self.clicked = False
         self.prevclick = 0 # Prevention for holding mouse and moving it over the button. previous event must be "not clicked".
 
     def draw(self):
         action = False
+        touch = False
         mousePos = pygame.mouse.get_pos()
         if self.rect.collidepoint(mousePos):
-            # change color
+            touch = True
             if pygame.mouse.get_pressed()[0] and not self.clicked and not self.prevclick:
                 self.clicked = True
                 action = True
@@ -34,7 +36,9 @@ class Button(pygame.sprite.Sprite):
         else:
             self.prevclick = 1
 
-        screen.blit(self.image, (self.rect.x, self.rect.y))
+        screen.blit(self.image, (self.rect))
+        if touch: screen.blit(self.imageL, (self.rect))
+        
         return action
 
 # All interactable objects in the game
@@ -47,18 +51,21 @@ class Interface(pygame.sprite.Sprite):
 
     def draw(self, player: Player):
         if self.rect.colliderect(player.rect):
-            screen.blit(self.imageW, (self.rect.x, self.rect.y))
-        screen.blit(self.image, (self.rect.x, self.rect.y))
+            screen.blit(self.imageW, (self.rect))
+        screen.blit(self.image, (self.rect))
 
 # Menu screen
 menuBack = pygame.image.load('images/menu.jpg').convert()
 menurect = menuBack.get_rect(center = (constants.worldWidth/2,constants.worldHeight/2))
 
 
-playButton = Button('images/play.png',480,100,0.2)
-menuButton = Button('images/menutxt.png',480,200,0.3)
+playButton = Button('images/GUI/playbutton.png','images/GUI/playbutton_light.png',480,100,1.5)
+menuButton = Button('images/GUI/menubutton.png','images/GUI/menubutton_light.png',480,200,1.5)
 
-machine = Interface('images/machine.png','images/machine_white.png',-200,430,0.4)
+machine = Interface('images/item/onion.png','images/item/watermelon.png',-200,430,1.5)
+
+inventory = pygame.image.load('images/GUI/inventory.png').convert_alpha()
+inventory_rect = inventory.get_rect(center = (constants.worldWidth/2, constants.worldHeight-50))
 
 back = Background()
 back.addObject(machine)
@@ -92,6 +99,7 @@ while True:
         player.draw(screen)
         player.update(background.sprite)
 
+        screen.blit(inventory,inventory_rect)
 
     else: # gamemode == 'pause'
         screen.fill((94,129,162))
