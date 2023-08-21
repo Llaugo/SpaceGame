@@ -41,7 +41,7 @@ class Button(pygame.sprite.Sprite):
         
         return action
 
-# All interactable objects in the game
+# All interactable objects in the game. Same as a button, but instead of mouse it detects collisions with the player(rect)
 class Interface(pygame.sprite.Sprite):
     def __init__(self, pic, picW, x, y, scale):
         self.open = False
@@ -51,7 +51,7 @@ class Interface(pygame.sprite.Sprite):
 
     def draw(self, player: Player):
         if self.rect.colliderect(player.rect):
-            screen.blit(self.imageW, (self.rect))
+            screen.blit(self.imageW, (self.rect.x-1, self.rect.y-1))
         screen.blit(self.image, (self.rect))
 
 # Menu screen
@@ -61,14 +61,16 @@ menurect = menuBack.get_rect(center = (constants.worldWidth/2,constants.worldHei
 
 playButton = Button('images/GUI/playbutton.png','images/GUI/playbutton_light.png',480,100,1.5)
 menuButton = Button('images/GUI/menubutton.png','images/GUI/menubutton_light.png',480,200,1.5)
+resumeButton = Button('images/GUI/resumebutton.png','images/GUI/resumebutton_light.png',480,300,1.5)
+exitButton = Button('images/GUI/exitbutton.png','images/GUI/exitbutton_light.png',480,200,1.5)
 
-machine = Interface('images/item/onion.png','images/item/watermelon.png',-200,430,1.5)
+liftOne = Interface('images/interact/lift1.png','images/interact/lift1_white.png',-236,351,1.5)
 
 inventory = pygame.image.load('images/GUI/inventory.png').convert_alpha()
 inventory_rect = inventory.get_rect(center = (constants.worldWidth/2, constants.worldHeight-50))
 
 back = Background()
-back.addObject(machine)
+back.addObject(liftOne)
 background = pygame.sprite.GroupSingle()
 background.add(back)
 player = pygame.sprite.GroupSingle()
@@ -91,6 +93,9 @@ while True:
     if gamemode == 'menu':
         screen.blit(menuBack,menurect)
         if playButton.draw(): gamemode = 'game'
+        if exitButton.draw():
+            pygame.quit()
+            exit()
    
     elif gamemode == 'game':
         background.draw(screen)
@@ -104,6 +109,7 @@ while True:
     else: # gamemode == 'pause'
         screen.fill((94,129,162))
         if menuButton.draw(): gamemode = 'menu'
+        if resumeButton.draw(): gamemode = 'game'
 
     pygame.display.update()
     clock.tick(60)
