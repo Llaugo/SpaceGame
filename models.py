@@ -5,6 +5,11 @@ import random
 
 # Models
 
+# Base class for interactable objects
+class Interactable(pygame.sprite.Sprite):
+    def draw():
+        pass
+
 # User controlled player
 class Player(pygame.sprite.Sprite):
     def __init__(self, name):
@@ -22,12 +27,20 @@ class Player(pygame.sprite.Sprite):
         print('player "' + self.name + '" created.')
 
     # All keyboard inputs from players are handled here
-    def player_input(self, world):
+    def player_input(self, world, walls):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a] and (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.left > 5:
             self.rect.x -= constants.playerSpeed
+            for wall in walls:
+                if self.rect.colliderect(wall.rect): 
+                    self.rect.x += constants.playerSpeed
+                    break
         if keys[pygame.K_d] and (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.right < constants.worldWidth-5:
             self.rect.x += constants.playerSpeed
+            for wall in walls:
+                if self.rect.colliderect(wall.rect): 
+                    self.rect.x -= constants.playerSpeed
+                    break
         if keys[pygame.K_SPACE] and self.rect.bottom >= constants.distFromGround:
             self.gravity = -6
 
@@ -37,8 +50,8 @@ class Player(pygame.sprite.Sprite):
         if self.rect.bottom >= constants.distFromGround:
             self.rect.bottom = constants.distFromGround
 
-    def update(self, world):
-        self.player_input(world)
+    def update(self, world, walls):
+        self.player_input(world, walls)
         self.apply_gravity()
     
 
@@ -86,24 +99,35 @@ class Background(pygame.sprite.Sprite):
         super().__init__()
         self.image = pygame.transform.rotozoom(pygame.image.load('images/world/world.png').convert(),0,1.5)
         self.rect = self.image.get_rect(center = (200,-1070))
-        self.objects: list[pygame.sprite.Sprite] = []
+        self.objects: list[Interactable] = []
 
-    def addObject(self, object): # OBJECTS MUST HAVE A DRAW() FUNCTION
+    def addObject(self, object: Interactable): # OBJECTS MUST HAVE A DRAW() FUNCTION
         self.objects.append(object)
 
-    def bg_input(self, player: Player):
+    def move(self, movex, movey=0):
+        self.rect.x += movex
+        self.rect.y += movey
+        for obj in self.objects:
+            obj.rect.x += movex
+            obj.rect.y += movey
+
+    def bg_input(self, player: Player, walls):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_d] and self.rect.right > constants.worldWidth and player.rect.center[0] >= 0.5*constants.worldWidth:
-            self.rect.x -= constants.playerSpeed
-            for obj in self.objects:
-                obj.rect.x -= constants.playerSpeed
+            self.move(-constants.playerSpeed)
+            for wall in walls:
+                if player.rect.colliderect(wall.rect): 
+                    self.move(constants.playerSpeed)
+                    break
         if keys[pygame.K_a] and self.rect.left < 0 and player.rect.center[0] <= 0.5*constants.worldWidth:
-            self.rect.x += constants.playerSpeed
-            for obj in self.objects:
-                obj.rect.x += constants.playerSpeed
+            self.move(constants.playerSpeed)
+            for wall in walls:
+                if player.rect.colliderect(wall.rect): 
+                    self.move(-constants.playerSpeed)
+                    break
 
-    def update(self, player: Player):
-        self.bg_input(player)
+    def update(self, player: Player, walls):
+        self.bg_input(player, walls)
         for obj in self.objects:
             obj.draw(player)
 
