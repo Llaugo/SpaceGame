@@ -7,6 +7,7 @@ import random
 
 # Base class for interactable objects
 class Interactable(pygame.sprite.Sprite):
+
     def draw():
         pass
 
@@ -16,6 +17,8 @@ class Player(pygame.sprite.Sprite):
         super().__init__()
         pic = pygame.image.load('images/player.png').convert()
         self.image = pygame.transform.rotozoom(pic,0,1.5)
+        self.normal = self.image
+        self.flipped = pygame.transform.flip(self.image, True, False)
         self.rect = self.image.get_rect(midbottom = (constants.worldWidth/2, constants.distFromGround))
         self.gravity = 0
 
@@ -29,18 +32,22 @@ class Player(pygame.sprite.Sprite):
     # All keyboard inputs from players are handled here
     def player_input(self, world, walls):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_a] and (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.left > 5:
-            self.rect.x -= constants.playerSpeed
-            for wall in walls:
-                if self.rect.colliderect(wall.rect): 
-                    self.rect.x += constants.playerSpeed
-                    break
-        if keys[pygame.K_d] and (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.right < constants.worldWidth-5:
-            self.rect.x += constants.playerSpeed
-            for wall in walls:
-                if self.rect.colliderect(wall.rect): 
-                    self.rect.x -= constants.playerSpeed
-                    break
+        if keys[pygame.K_a]:
+            self.image = self.flipped
+            if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.left > 5:
+                self.rect.x -= constants.playerSpeed
+                for wall in walls:
+                    if self.rect.colliderect(wall.rect): 
+                        self.rect.x += constants.playerSpeed
+                        break
+        if keys[pygame.K_d]:
+            self.image = self.normal
+            if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.right < constants.worldWidth-5:
+                self.rect.x += constants.playerSpeed
+                for wall in walls:
+                    if self.rect.colliderect(wall.rect): 
+                        self.rect.x -= constants.playerSpeed
+                        break
         if keys[pygame.K_SPACE] and self.rect.bottom >= constants.distFromGround:
             self.gravity = -6
 
@@ -128,8 +135,7 @@ class Background(pygame.sprite.Sprite):
 
     def update(self, player: Player, walls):
         self.bg_input(player, walls)
-        for obj in self.objects:
-            obj.draw(player)
+
 
 
 # Non-playable characters that can be interacted with
@@ -139,7 +145,9 @@ class NPC:
 
 # All kinds of stuff that can be carried and held in inventory
 class Item:
-    def __init__(self, name, amount=1):
+    def __init__(self, pic, pos, scale, name, amount=1):
+        self.image = pygame.transform.rotozoom(pygame.image.load(pic).convert(),0,scale)
+        self.rect = self.image.get_rect(center = pos)
         self.name = name
         self.amount = max(min(amount, constants.itemStackSize[name]), 1) # Item amounts must stay inside the limits
 
@@ -161,35 +169,6 @@ class WaterTank:
     def pour(self, quantity):
         self.amount = max(0, self.amount - quantity)
         print('tank poured, amount left: ' + str(self.amount))
-
-
-# A place to put items into
-class Container:
-    def __init__(self, name, size):
-        self.name = name
-        self.size = size
-        self.spots = [None] * size
-
-    def addItem(self, item: 'Item', slot=0):
-        if (-1 < slot < self.size) and (self.spots[slot] == None):
-            self.spots[slot] = item
-            print('item ' + item.name + ' added to ' + self.name)
-
-    # Removes an item from selected slot and returns that item
-    def removeItem(self, slot):
-        if (-1 < slot < self.size) and (self.spots[slot] != None):
-            toDel: 'Item' = self.spots[slot]
-            self.spots[slot] = None
-            print('item ' + toDel.name + ' removed from ' + self.name)
-            return toDel
-        
-    def isEmpty(self):
-        if not self.spots:
-            print("Container is empty")
-            return True
-        else:
-            print("Container not empty")
-            return False
 
 
 # All the different areas in the ground segment
@@ -228,23 +207,9 @@ class Kitchen(Area):
                 print('Food price update: ' + item[0] + ' costs now ' + newPrice)
 
 
-# big storage area with many containers
-class Storage(Area):
-    def __init__(self):
-        self.crate1 = Container('Crate', 50)
-        self.crate2 = Container('Crate', 50)
-        self.box1 = Container('Box', 10)
-        self.box2 = Container('Box', 10)
-        self.box3 = Container('Box', 10)
-        self.box4 = Container('Box', 10)
-        self.barrel = Container('Barrel', 20)
-
-
 # All of the bought stuff arrives here
 class LoadingBridge(Area):
     def __init__(self):
-        self.box = Container('Box', 10)
-        self.current = Container('Shipping container', 9)
         self.ready = []
         self.underway = []
 
@@ -256,7 +221,7 @@ class LoadingBridge(Area):
             print('order has arrived')
 
     # Adding a new order for underway
-    def newOrder(self, new: Container):
+    def newOrder(self, new):
         self.underway.append(new)
         print('new order has been set')
 
