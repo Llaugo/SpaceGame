@@ -4,17 +4,6 @@ from models import *
 # models imports also pygame, constants and random
 
 
-pygame.init()
-screen = pygame.display.set_mode((constants.worldWidth,constants.worldHeight))
-pygame.display.set_caption('Satellite Forge')
-pygame.display.set_icon(pygame.image.load('images/player.png'))
-clock = pygame.time.Clock()
-gamefont = pygame.font.Font('SatelliteForge-Regular.ttf', 25)
-gamemode = 'game' # Options: menu, game, pause
-floor = 1 # Options: 1, 2, 3
-moveLift = 0 # negative down, positive up
-
-
 
 class Button(Interactable):
     def __init__(self, pic, picL, pos, scale):
@@ -80,23 +69,47 @@ class InventorySlot(pygame.sprite.Sprite):
         self.imageW = pygame.image.load('images/GUI/slot_white.png').convert()
         self.rect = self.image.get_rect(center = (x,y))
         self.occupant: Item = None
+        self.prevclick = 1 # Prevention for holding mouse and moving it over the button. previous event must be "not clicked".
 
     def draw(self, pos):
         self.rect.topleft = pos
         if self.rect.collidepoint(pygame.mouse.get_pos()):
             screen.blit(self.imageW,self.rect)
+            #item transfer
+            global handItem
+            mouse = pygame.mouse.get_pressed()
+            if mouse[0] or (mouse[2] and handItem and self.occupant):
+                if not self.prevclick:
+                    self.prevclick = 1
+                    if handItem and self.occupant and handItem.name == self.occupant.name:
+                            if mouse[0]:
+                                self.occupant.amount += handItem.amount
+                                handItem = None
+                            else:
+                                self.occupant.amount += 1
+                                handItem.amount -= 1
+                    else:
+                        prevHand = handItem
+                        handItem = self.occupant
+                        self.occupant = prevHand
+            elif mouse[2] and handItem:
+                if not self.prevclick:
+                    self.prevclick = 1
+                    self.occupant = Item(handItem.pic,handItem.rect,handItem.scale,handItem.name)
+                    handItem.amount = handItem.amount - 1
+            else: self.prevclick = 0
         else: screen.blit(self.image, self.rect)
-        if self.occupant:
-            screen.blit(self.occupant.image, (self.rect.x+4,self.rect.y+3))
-            number = gamefont.render(str(self.occupant.amount),False,(0,0,0))
-            screen.blit(number, (self.rect.center))
+        if self.occupant: # Item picture and quantity text
+            self.occupant.rect = (self.rect.x+4, self.rect.y+3)
+            renderItem(self.occupant)
 
 
     def addItem(self, item: Item):
-        if self.occupant == None:
+        if not item: return True
+        elif not self.occupant:
             self.occupant = item
         elif self.occupant.name == item.name:
-            self.occupant.amount = item.amount
+            self.occupant.amount += item.amount
         else: return False
         return True
 
@@ -132,9 +145,13 @@ class Container(Interface):
         else: self.open = False
 
     # Adds an item to a selected slot
-    def addItem(self, item: Item, slot=0):
+    def addItem(self, item: Item, slot=-1):
         if (-1 < slot < self.size) and self.spots[slot].addItem(item):
             return True
+        elif slot == -1:
+            for i in range(self.size):
+                if self.spots[i].addItem(item):
+                    return True
         else: return False
 
     # Removes an item from selected slot and returns that item
@@ -167,6 +184,23 @@ def liftButtons(lift: Interface):
         else: pass
         floor = 3
 
+def renderItem(item: Item):
+    screen.blit(item.image, item.rect)
+    number = gamefont.render(str(item.amount),False,(0,0,0))
+    number_rect = number.get_rect(center = (item.rect[0]+22, item.rect[1]+24))
+    screen.blit(number, number_rect)
+
+
+pygame.init()
+screen = pygame.display.set_mode((constants.worldWidth,constants.worldHeight))
+pygame.display.set_caption('Satellite Forge')
+pygame.display.set_icon(pygame.image.load('images/player.png'))
+clock = pygame.time.Clock()
+gamefont = pygame.font.Font('SatelliteForge-Regular.ttf', 25)
+gamemode = 'game' # Options: menu, game, pause
+floor = 1 # Options: 1, 2, 3
+moveLift = 0 # negative down, positive up
+handItem: Item = None # Item currently in hand
 
 # Menu screen
 menuBack = pygame.image.load('images/menu.jpg').convert()
@@ -187,8 +221,12 @@ liftThree = Interface('images/interact/lift3.png','images/interact/lift3_white.p
 chest3 = Container('images/interact/chest.png','images/interact/chest_white.png',200,430,1.5,'chest',10)
 containers: list[Container] = [chest3]
 
-bottle = Item('images/item/watermelon.png',(100,100),1,'watermelon')
-chest3.addItem(bottle)
+onions1 = Item('images/item/onion.png',(100,100),1,'onion',7)
+onions2 = Item('images/item/onion.png',(100,100),1,'onion',5)
+melon = Item('images/item/watermelon.png',(100,100),1,'watermelon')
+chest3.addItem(melon)
+chest3.addItem(onions1)
+chest3.addItem(onions2,2)
 
 inventory = pygame.image.load('images/GUI/inventory.png').convert_alpha()
 inventory_rect = inventory.get_rect(center = (constants.worldWidth/2, constants.worldHeight-50))
@@ -266,6 +304,11 @@ while True:
 
         if not moveLift or (back.rect.x + 1980): player.draw(screen) # Player vanishes inside the lift
         player.update(background.sprite, walls)
+
+        if handItem:
+            handItem.rect = pygame.mouse.get_pos()
+            renderItem(handItem)
+
 
         screen.blit(inventory,inventory_rect)
         

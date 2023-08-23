@@ -148,6 +148,8 @@ class Item:
     def __init__(self, pic, pos, scale, name, amount=1):
         self.image = pygame.transform.rotozoom(pygame.image.load(pic).convert(),0,scale)
         self.rect = self.image.get_rect(center = pos)
+        self.pic = pic
+        self.scale = scale
         self.name = name
         self.amount = max(min(amount, constants.itemStackSize[name]), 1) # Item amounts must stay inside the limits
 
