@@ -1,5 +1,6 @@
 from sys import exit
 from models import *
+import math
 
 # models imports also pygame, constants and random
 
@@ -82,12 +83,12 @@ class InventorySlot(pygame.sprite.Sprite):
                 if not self.prevclick:
                     self.prevclick = 1
                     if handItem and self.occupant and handItem.name == self.occupant.name:
-                            if mouse[0]:
-                                self.occupant.amount += handItem.amount
-                                handItem = None
-                            else:
-                                self.occupant.amount += 1
-                                handItem.amount -= 1
+                        if mouse[0]:
+                            self.occupant.amount += handItem.amount
+                            handItem = None
+                        else:
+                            self.occupant.amount += 1
+                            handItem.amount -= 1
                     else:
                         prevHand = handItem
                         handItem = self.occupant
@@ -97,7 +98,15 @@ class InventorySlot(pygame.sprite.Sprite):
                     self.prevclick = 1
                     self.occupant = Item(handItem.pic,handItem.rect,handItem.scale,handItem.name)
                     handItem.amount = handItem.amount - 1
+            elif mouse[2] and self.occupant:
+                if not self.prevclick:
+                    self.prevclick = 1
+                    half = math.ceil(self.occupant.amount/2)
+                    self.occupant.amount -= half
+                    handItem = Item(self.occupant.pic,self.occupant.rect,self.occupant.scale,self.occupant.name,half)
             else: self.prevclick = 0
+            if self.occupant and self.occupant.amount < 1: self.occupant = None
+            if handItem and handItem.amount < 1: handItem = None
         else: screen.blit(self.image, self.rect)
         if self.occupant: # Item picture and quantity text
             self.occupant.rect = (self.rect.x+4, self.rect.y+3)
@@ -118,6 +127,8 @@ class InventorySlot(pygame.sprite.Sprite):
             toDel = self.occupant
             self.occupant = None
             return toDel
+
+
 
 # A place to put items into
 class Container(Interface):
