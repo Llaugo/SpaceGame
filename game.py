@@ -128,7 +128,15 @@ class InventorySlot(pygame.sprite.Sprite):
             self.occupant = None
             return toDel
 
+class Inventory:
+    def __init__(self, size):
+        self.inventory: list[InventorySlot] = []
+        for i in range(size):
+            self.inventory.append(InventorySlot(int(constants.worldWidth*(i+7)/(size+13)), constants.worldHeight-40))
 
+    def draw(self):
+        for slot in self.inventory:
+            slot.draw((slot.rect.x,slot.rect.y))
 
 # A place to put items into
 class Container(Interface):
@@ -138,9 +146,11 @@ class Container(Interface):
         self.prevclick = 1 # Prevention of flashing inventory while holding w. previous action must be not clicked (=0)
         self.name = name
         self.size = size
-        self.spots: list[InventorySlot] = []
-        for i in range(size):
-            self.spots.append(InventorySlot(self.rect.x + i*50,200))
+        self.spots: list[(InventorySlot,(int, int))] = []
+        self.dim = self.factors(size)
+        for i in range(int(self.dim[0])):
+            for j in range(int(self.dim[1])):
+                self.spots.append((InventorySlot(i*40,j*40), (i*40,j*40)))
 
     def update(self,player):
         if self.draw(player):
@@ -152,25 +162,33 @@ class Container(Interface):
             else: self.prevclick = 0
             if self.open:
                 for i in range(self.size):
-                    self.spots[i].draw((self.rect.x+i*50,200))
+                    self.spots[i][0].draw((self.rect.x + self.spots[i][1][0], self.rect.y - 300 + self.spots[i][1][1]))
         else: self.open = False
 
     # Adds an item to a selected slot
     def addItem(self, item: Item, slot=-1):
-        if (-1 < slot < self.size) and self.spots[slot].addItem(item):
+        if (-1 < slot < self.size) and self.spots[slot][0].addItem(item):
             return True
         elif slot == -1:
             for i in range(self.size):
-                if self.spots[i].addItem(item):
+                if self.spots[i][0].addItem(item):
                     return True
         else: return False
 
-    # Removes an item from selected slot and returns that item
-    def removeItem(self, slot):
-        if (-1 < slot < self.size):
-            item = self.spots[slot].removeItem()
-            return item
-
+    # Helper function to get the layout of the container. Returns tuple of dimensions
+    def factors(self, n: int):
+        dimensions = (1,n)
+        if not n % 6:
+            if n == 6: dimensions = (2,3)
+            else: dimensions = (n/6,6)
+        elif not n % 5: dimensions = (n/5,5)
+        elif not n % 4:
+            if n == 4: dimensions = (2,2)
+            else: dimensions = (n/4,4)
+        elif not n % 3: dimensions = (n/3,3)
+        elif not n % 2: dimensions = (2,n/2)
+        print(dimensions)
+        return dimensions
 
 def liftButtons(lift: Interface):
     global moveLift
@@ -197,9 +215,10 @@ def liftButtons(lift: Interface):
 
 def renderItem(item: Item):
     screen.blit(item.image, item.rect)
-    number = gamefont.render(str(item.amount),False,(0,0,0))
-    number_rect = number.get_rect(center = (item.rect[0]+22, item.rect[1]+24))
-    screen.blit(number, number_rect)
+    if item.amount != 1:
+        number = gamefont.render(str(item.amount),False,(0,0,0))
+        number_rect = number.get_rect(center = (item.rect[0]+22, item.rect[1]+24))
+        screen.blit(number, number_rect)
 
 
 pygame.init()
@@ -212,6 +231,8 @@ gamemode = 'game' # Options: menu, game, pause
 floor = 1 # Options: 1, 2, 3
 moveLift = 0 # negative down, positive up
 handItem: Item = None # Item currently in hand
+
+inventory = Inventory(8)
 
 # Menu screen
 menuBack = pygame.image.load('images/menu.jpg').convert()
@@ -229,7 +250,7 @@ liftOne = Interface('images/interact/lift1.png','images/interact/lift1_white.png
 liftTwo = Interface('images/interact/lift2.png','images/interact/lift2_white.png',-236,-90,1.5)
 liftThree = Interface('images/interact/lift3.png','images/interact/lift3_white.png',-236,-528,1.5)
 
-chest3 = Container('images/interact/chest.png','images/interact/chest_white.png',200,430,1.5,'chest',10)
+chest3 = Container('images/interact/chest.png','images/interact/chest_white.png',200,430,1.5,'chest',25)
 containers: list[Container] = [chest3]
 
 onions1 = Item('images/item/onion.png',(100,100),1,'onion',7)
@@ -238,9 +259,6 @@ melon = Item('images/item/watermelon.png',(100,100),1,'watermelon')
 chest3.addItem(melon)
 chest3.addItem(onions1)
 chest3.addItem(onions2,2)
-
-inventory = pygame.image.load('images/GUI/inventory.png').convert_alpha()
-inventory_rect = inventory.get_rect(center = (constants.worldWidth/2, constants.worldHeight-50))
 
 wall1 = Wall('images/interact/wall1.png',(-2616,-611))
 wall2 = Wall('images/interact/wall2.png',(-2640,-172))
@@ -316,12 +334,13 @@ while True:
         if not moveLift or (back.rect.x + 1980): player.draw(screen) # Player vanishes inside the lift
         player.update(background.sprite, walls)
 
+        inventory.draw()
+
         if handItem:
             handItem.rect = pygame.mouse.get_pos()
             renderItem(handItem)
 
 
-        screen.blit(inventory,inventory_rect)
         
 
     else: # gamemode == 'pause'
