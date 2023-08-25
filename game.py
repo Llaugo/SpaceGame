@@ -48,7 +48,7 @@ class Interface(Interactable):
         if self.rect.colliderect(player.rect):
             screen.blit(self.imageW, (self.rect.x-2, self.rect.y-3))
             action = True
-        screen.blit(self.image, (self.rect))
+        else: screen.blit(self.image, (self.rect))
         return action
     
     def update(self,player):
@@ -64,11 +64,11 @@ class Wall(Interactable):
         screen.blit(self.image, self.rect)
 
 class InventorySlot(pygame.sprite.Sprite):
-    def __init__(self,x,y):
+    def __init__(self,pos):
         super().__init__()
         self.image = pygame.image.load('images/GUI/slot.png').convert()
         self.imageW = pygame.image.load('images/GUI/slot_white.png').convert()
-        self.rect = self.image.get_rect(center = (x,y))
+        self.rect = self.image.get_rect(center = pos)
         self.occupant: Item = None
         self.prevclick = 1 # Prevention for holding mouse and moving it over the button. previous event must be "not clicked".
 
@@ -123,7 +123,7 @@ class InventorySlot(pygame.sprite.Sprite):
         return True
 
     def removeItem(self):
-        if self.occupant != None:
+        if self.occupant:
             toDel = self.occupant
             self.occupant = None
             return toDel
@@ -132,7 +132,7 @@ class Inventory:
     def __init__(self, size):
         self.inventory: list[InventorySlot] = []
         for i in range(size):
-            self.inventory.append(InventorySlot(int(constants.worldWidth*(i+7)/(size+13)), constants.worldHeight-40))
+            self.inventory.append(InventorySlot((int(constants.worldWidth*(i+7)/(size+13)), constants.worldHeight-40)))
 
     def draw(self):
         for slot in self.inventory:
@@ -150,19 +150,24 @@ class Container(Interface):
         self.dim = self.factors(size)
         for i in range(int(self.dim[0])):
             for j in range(int(self.dim[1])):
-                self.spots.append((InventorySlot(i*40,j*40), (i*40,j*40)))
+                self.spots.append((InventorySlot((i*40,j*40)), (i*40,j*40)))
 
     def update(self,player):
         if self.draw(player):
             keys = pygame.key.get_pressed()
             if keys[pygame.K_w]:
                 if not self.prevclick:
-                    self.open = self.open ^ True # Toggle state of openness
-                    self.prevclick = 1
+                    global containers
+                    nonOpen = True
+                    for box in containers: # Open only if no other container is open
+                        if box.open: nonOpen = False
+                    if nonOpen or self.open:
+                        self.open = self.open ^ True # Toggle state of openness
+                        self.prevclick = 1
             else: self.prevclick = 0
             if self.open:
                 for i in range(self.size):
-                    self.spots[i][0].draw((self.rect.x + self.spots[i][1][0], self.rect.y - 300 + self.spots[i][1][1]))
+                    self.spots[i][0].draw((self.rect.x + self.spots[i][1][0], self.rect.y - 250 + self.spots[i][1][1]))
         else: self.open = False
 
     # Adds an item to a selected slot
@@ -187,8 +192,17 @@ class Container(Interface):
             else: dimensions = (n/4,4)
         elif not n % 3: dimensions = (n/3,3)
         elif not n % 2: dimensions = (2,n/2)
-        print(dimensions)
         return dimensions
+
+class Garbage(Interface):
+    def __init__(self, pic, picW, x, y, scale):
+        super().__init__(pic,picW,x,y,scale)
+        self.hole = InventorySlot(self.rect.center)
+
+    def update(self, player):
+        if self.draw(player):
+            self.hole.draw((self.rect.center[0]-18, self.rect.y + 5))
+            self.hole.removeItem()
 
 def liftButtons(lift: Interface):
     global moveLift
@@ -250,8 +264,22 @@ liftOne = Interface('images/interact/lift1.png','images/interact/lift1_white.png
 liftTwo = Interface('images/interact/lift2.png','images/interact/lift2_white.png',-236,-90,1.5)
 liftThree = Interface('images/interact/lift3.png','images/interact/lift3_white.png',-236,-528,1.5)
 
-chest3 = Container('images/interact/chest.png','images/interact/chest_white.png',200,430,1.5,'chest',25)
-containers: list[Container] = [chest3]
+chest1 = Container('images/interact/chest.png','images/interact/chest_white.png',-1728,430,1.5,'chest',10)
+chest2 = Container('images/interact/chest.png','images/interact/chest_white.png',-1072,430,1.5,'chest',10)
+chest3 = Container('images/interact/chest.png','images/interact/chest_white.png',200,430,1.5,'chest',10)
+barrel1 = Container('images/interact/barrel.png','images/interact/barrel_white.png',-1907,340,1.5,'barrel',8)
+barrel2 = Container('images/interact/barrel.png','images/interact/barrel_white.png',-1874,420,1.5,'barrel',8)
+barrel3 = Container('images/interact/barrel.png','images/interact/barrel_white.png',-1940,420,1.5,'barrel',8)
+crate1 = Container('images/interact/crate.png','images/interact/crate_white.png',-2256,430,1.5,'crate',9)
+crate2 = Container('images/interact/crate.png','images/interact/crate_white.png',-1291,311,1.5,'crate',9)
+crate3 = Container('images/interact/crate.png','images/interact/crate_white.png',-1540,-10,1.5,'crate',9)
+cube1 = Container('images/interact/cube.png','images/interact/cube_white.png',-2134,402,1.5,'cube',16)
+cube2 = Container('images/interact/cube.png','images/interact/cube_white.png',-1326,402,1.5,'cube',16)
+cube3 = Container('images/interact/cube.png','images/interact/cube_white.png',-1193,402,1.5,'cube',16)
+box = Container('images/interact/box.png','images/interact/box_white.png',-1150,322,1.5,'box',4)
+containers: list[Container] = [chest1,chest2,chest3,barrel1,barrel2,barrel3,cube1,cube2,cube3,crate1,crate2,crate3,box]
+
+garbage = Garbage('images/interact/garbage.png','images/interact/garbage_white.png',629,388,1.5)
 
 onions1 = Item('images/item/onion.png',(100,100),1,'onion',7)
 onions2 = Item('images/item/onion.png',(100,100),1,'onion',5)
@@ -269,7 +297,20 @@ back = Background()
 back.addObject(liftOne)
 back.addObject(liftTwo)
 back.addObject(liftThree)
+back.addObject(chest1)
+back.addObject(chest2)
 back.addObject(chest3)
+back.addObject(barrel1)
+back.addObject(barrel2)
+back.addObject(barrel3)
+back.addObject(crate1)
+back.addObject(crate2)
+back.addObject(crate3)
+back.addObject(cube1)
+back.addObject(cube2)
+back.addObject(cube3)
+back.addObject(box)
+back.addObject(garbage)
 back.addObject(wall1)
 back.addObject(wall2)
 back.addObject(wall3)
@@ -277,7 +318,20 @@ back.addObject(wall4)
 background = pygame.sprite.GroupSingle()
 background.add(back)
 objects = pygame.sprite.Group()
+objects.add(chest1)
+objects.add(chest2)
 objects.add(chest3)
+objects.add(barrel1)
+objects.add(barrel2)
+objects.add(barrel3)
+objects.add(crate1)
+objects.add(crate2)
+objects.add(crate3)
+objects.add(cube1)
+objects.add(cube2)
+objects.add(cube3)
+objects.add(box)
+objects.add(garbage)
 player = pygame.sprite.GroupSingle()
 player.add(Player('Steve'))
 
@@ -324,8 +378,8 @@ while True:
         elif liftThree.draw(player.sprite):
             liftButtons(liftThree)
 
-        objects.update(player.sprite)
         objects.draw(screen)
+        objects.update(player.sprite)
 
         score_surf = gamefont.render(f'text',False,(50,50,50))
         score_rect = score_surf.get_rect(center = (150,50))
@@ -337,7 +391,8 @@ while True:
         inventory.draw()
 
         if handItem:
-            handItem.rect = pygame.mouse.get_pos()
+            pos = pygame.mouse.get_pos()
+            handItem.rect = (pos[0]-14,pos[1]-16)
             renderItem(handItem)
 
 
