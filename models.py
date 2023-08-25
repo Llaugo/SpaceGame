@@ -13,7 +13,7 @@ class Interactable(pygame.sprite.Sprite):
 
 # User controlled player
 class Player(pygame.sprite.Sprite):
-    def __init__(self, name):
+    def __init__(self, name, foodbar, waterbar):
         super().__init__()
         pic = pygame.image.load('images/player.png').convert()
         self.image = pygame.transform.rotozoom(pic,0,1.5)
@@ -21,13 +21,10 @@ class Player(pygame.sprite.Sprite):
         self.flipped = pygame.transform.flip(self.image, True, False)
         self.rect = self.image.get_rect(midbottom = (constants.worldWidth/2, constants.distFromGround))
         self.gravity = 0
-
         self.name = name
-        self.thirst = constants.playerMaxThirst
-        self.hunger = constants.playerMaxHunger
-        self.inventory = [None] * constants.playerInventorySize
+        self.thirst = waterbar
+        self.hunger = foodbar
         self.money = constants.startingCash
-        print('player "' + self.name + '" created.')
 
     # All keyboard inputs from players are handled here
     def player_input(self, world, walls):
@@ -61,44 +58,6 @@ class Player(pygame.sprite.Sprite):
         self.player_input(world, walls)
         self.apply_gravity()
     
-
-    def lowerThirst(self):
-        self.thirst -= 1
-        print('thirst')
-
-    def lowerHunger(self):
-        self.hunger -= 1
-        print('hunger')
-
-    # Better hunger by some amount, if not specified set to full
-    def eat(self, amount=constants.playerMaxHunger):
-        self.hunger = min(constants.playerMaxHunger, self.hunger+amount)
-        print('eating, hunger at: (' + str(self.hunger) + '/' + str(constants.playerMaxHunger) + ')')
-
-    # Better thirst by some amount, if not specified set to full
-    def drink(self, amount=constants.playerMaxThirst):
-        self.thirst = min(constants.playerMaxThirst, self.thirst+amount)
-        print('drinking, thirst at: (' + str(self.thirst) + '/' + str(constants.playerMaxThirst) + ')')
-
-    # Add an item to inventory. If slot is taken, change items and return the item previously in slot. If empty slot return None
-    def addItem(self, item: 'Item', slot=0):
-        if (-1 < slot < constants.playerInventorySize):
-            if self.inventory[slot] == None:
-                self.inventory[slot] = item
-                print('item added: ' + item.name)
-            else:
-                prevItem = self.inventory[slot]
-                self.inventory[slot] = item
-                print('item added: ' + item.name)
-                return prevItem
-
-    # Remove an item from inventory and return that item
-    def removeItem(self, slot):
-        if (-1 < slot < constants.playerInventorySize) and (self.inventory[slot] != None):
-            toDel: 'Item' = self.inventory[slot]
-            self.inventory[slot] = None
-            print('item removed: ' + toDel.name)
-            return toDel
 
 
 class Background(pygame.sprite.Sprite):

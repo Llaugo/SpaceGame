@@ -8,9 +8,7 @@ distFromGround = int(worldHeight-0.14*worldHeight)
 
 # Players stats
 playerSpeed = 3
-playerInventorySize = 10
-playerMaxThirst = 100
-playerMaxHunger = 100
+playerInventorySize = 8
 startingCash = 1000
 
 

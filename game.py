@@ -48,7 +48,7 @@ class Interface(Interactable):
         if self.rect.colliderect(player.rect):
             screen.blit(self.imageW, (self.rect.x-2, self.rect.y-3))
             action = True
-        else: screen.blit(self.image, (self.rect))
+        else: screen.blit(self.image, self.rect)
         return action
     
     def update(self,player):
@@ -204,6 +204,29 @@ class Garbage(Interface):
             self.hole.draw((self.rect.center[0]-18, self.rect.y + 5))
             self.hole.removeItem()
 
+class StatusBar(pygame.sprite.Sprite):
+    def __init__(self, pic, piece, name, pos, scale=1):
+        super().__init__()
+        self.image = pygame.transform.rotozoom(pygame.image.load(pic).convert(),0,scale)
+        self.rect = self.image.get_rect(topleft = pos)
+        self.piece = pygame.transform.rotozoom(pygame.image.load(piece).convert(),0,scale*1.2)
+        self.pRect = self.piece.get_rect(topleft = (pos[0]+38, pos[1]+12))
+        self.name = name
+        self.percent = 100
+
+    def draw(self):
+        for n in range(int(self.percent)):
+            screen.blit(self.piece,(self.pRect.x + ((n+1)/100)*270, self.pRect.y))
+        screen.blit(self.image, self.rect)
+        mouse_pos = pygame.mouse.get_pos()
+        if self.rect.collidepoint(mouse_pos):
+            status_surf = gamefont.render(f'{self.name} is at {self.percent} percent',False,(0,0,0))
+            status_rect = score_surf.get_rect(bottomleft = (mouse_pos))
+            screen.blit(status_surf,status_rect)
+
+    def alterStatus(self, amount):
+        self.percent = max(min((self.percent + amount),100),0)
+
 def liftButtons(lift: Interface):
     global moveLift
     global floor
@@ -246,7 +269,9 @@ floor = 1 # Options: 1, 2, 3
 moveLift = 0 # negative down, positive up
 handItem: Item = None # Item currently in hand
 
-inventory = Inventory(8)
+inventory = Inventory(constants.playerInventorySize)
+foodbar = StatusBar('images/GUI/foodbar.png','images/GUI/foodbar%.png','Hunger',(30,30),1.5)
+waterbar = StatusBar('images/GUI/waterbar.png','images/GUI/waterbar%.png','Thirst',(30,70),1.5)
 
 # Menu screen
 menuBack = pygame.image.load('images/menu.jpg').convert()
@@ -333,7 +358,7 @@ objects.add(cube3)
 objects.add(box)
 objects.add(garbage)
 player = pygame.sprite.GroupSingle()
-player.add(Player('Steve'))
+player.add(Player('Steve', foodbar, waterbar))
 
 while True:
     for event in pygame.event.get():
@@ -378,23 +403,24 @@ while True:
         elif liftThree.draw(player.sprite):
             liftButtons(liftThree)
 
-        objects.draw(screen)
+        #objects.draw(screen)
         objects.update(player.sprite)
 
-        score_surf = gamefont.render(f'text',False,(50,50,50))
-        score_rect = score_surf.get_rect(center = (150,50))
+        score_surf = gamefont.render(f'hunger is at {foodbar.percent}',False,(50,50,50))
+        score_rect = score_surf.get_rect(center = (750,50))
         screen.blit(score_surf,score_rect)
 
         if not moveLift or (back.rect.x + 1980): player.draw(screen) # Player vanishes inside the lift
         player.update(background.sprite, walls)
 
         inventory.draw()
+        foodbar.draw()
+        waterbar.draw()
 
         if handItem:
             pos = pygame.mouse.get_pos()
             handItem.rect = (pos[0]-14,pos[1]-16)
             renderItem(handItem)
-
 
         
 
