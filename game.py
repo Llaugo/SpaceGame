@@ -361,7 +361,7 @@ class StatusBar(pygame.sprite.Sprite):
         screen.blit(self.image, self.rect)
         mouse_pos = pygame.mouse.get_pos()
         if self.rect.collidepoint(mouse_pos):
-            status_surf = gamefont.render(f'{self.name} is at {self.percent} percent',False,(0,0,0))
+            status_surf = gamefont_small.render(f'{self.name} is at {self.percent} percent',False,(0,0,0))
             status_rect = score_surf.get_rect(bottomleft = (mouse_pos))
             screen.blit(status_surf,status_rect)
 
@@ -400,13 +400,23 @@ def renderItem(item: Item):
         screen.blit(number, number_rect)
 
 def shop():
-    rectangle = pygame.Rect(300, 100, 300, 220)
+    rectangle = pygame.Rect(300, 100, 300, 230)
     pygame.draw.rect(screen, (83,82,87), rectangle)
     for i in range(len(constants.kitchenSelection)):
         currentItem = constants.kitchenSelection[i]
         image = pygame.image.load(constants.itemPictures[currentItem[0]])
-        rect = image.get_rect(topleft = (rectangle.x + 5,rectangle.y + 5 + i*25))
-        screen.blit(image, rect)
+        img_rect = image.get_rect(topleft = (rectangle.x + 3, rectangle.y + 3 + i*27))
+        screen.blit(image, img_rect) # Image
+        name_surf = gamefont.render(f'{currentItem[0]}',False,(255,229,120))
+        name_rect = name_surf.get_rect(midleft = (img_rect.midright[0] + 5, img_rect.centery))
+        screen.blit(name_surf,name_rect) # Name
+        name_surf = gamefont.render(f'{currentItem[1]}',False,(255,229,120))
+        name_rect = name_surf.get_rect(midleft = (img_rect.midright[0] + 130, img_rect.centery))
+        screen.blit(name_surf,name_rect) # Amount
+        name_surf = gamefont.render(f'{currentItem[2]}',False,(255,168,98))
+        name_rect = name_surf.get_rect(midleft = (img_rect.midright[0] + 200, img_rect.centery))
+        screen.blit(name_surf,name_rect) # Cost
+
 
 
 
@@ -418,6 +428,7 @@ pygame.display.set_caption('Satellite Forge')
 pygame.display.set_icon(pygame.image.load('images/player.png'))
 clock = pygame.time.Clock()
 gamefont = pygame.font.Font('SatelliteForge-Regular.ttf', 25)
+gamefont_small = pygame.font.Font('SatelliteForge-Regular.ttf', 20)
 gamemode = 'game' # Options: menu, game, pause
 floor = 1 # Options: 1, 2, 3
 moveLift = 0 # negative down, positive up

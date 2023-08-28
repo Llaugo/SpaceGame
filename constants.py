@@ -44,7 +44,7 @@ upgradeExpansions = [['small container', 'small study', 'small solar panel', 'sm
 # Kitchens selection of buyable foods with name, amount and cost
 kitchenSelection = [['onion', 16, 10],
                     ['potato', 16, 16],
-                    ['apple', 16, 20],
+                    ['apple', 10, 20],
                     ['watermelon', 1, 8],
                     ['ice cream', 5, 12],
                     ['food ration', 10, 40],
