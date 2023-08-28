@@ -124,11 +124,11 @@ class HandItem:
             renderItem(self.item)
             if player.sprite.rect.collidepoint(pos) and (self.item.food or self.item.drink):
                 if self.item.food:
-                    eat_surf = gamefont.render(f'eat {self.item.name} [E]',False,(0,0,0))
+                    eat_surf = gamefont_small.render(f'eat {self.item.name} [E]',False,(0,0,0))
                     eat_rect = eat_surf.get_rect(bottomleft = (pos))
                     screen.blit(eat_surf,eat_rect)
-                if self.item.drink:
-                    drink_surf = gamefont.render(f'drink {self.item.name} [E]',False,(0,0,0))
+                elif self.item.drink:
+                    drink_surf = gamefont_small.render(f'drink {self.item.name} [E]',False,(0,0,0))
                     drink_rect = drink_surf.get_rect(bottomleft = (pos))
                     screen.blit(drink_surf,drink_rect)
                 keys = pygame.key.get_pressed()
@@ -234,14 +234,14 @@ class InventorySlot(pygame.sprite.Sprite):
             elif mouse[2] and handItem.item:
                 if not self.prevclick:
                     self.prevclick = 1
-                    self.occupant = Item(handItem.item.pic,handItem.item.rect,handItem.item.scale,handItem.item.name)
+                    self.occupant = Item(handItem.item.pic,handItem.item.rect,handItem.item.scale,handItem.item.name,1,handItem.item.food,handItem.item.drink)
                     handItem.item.amount = handItem.item.amount - 1
             elif mouse[2] and self.occupant:
                 if not self.prevclick:
                     self.prevclick = 1
                     half = math.ceil(self.occupant.amount/2)
                     self.occupant.amount -= half
-                    handItem.item = Item(self.occupant.pic,self.occupant.rect,self.occupant.scale,self.occupant.name,half)
+                    handItem.item = Item(self.occupant.pic,self.occupant.rect,self.occupant.scale,self.occupant.name,half,self.occupant.food,self.occupant.drink)
             else: self.prevclick = 0
             if self.occupant and self.occupant.amount < 1: self.occupant = None
             if handItem.item and handItem.item.amount < 1: handItem.item = None
@@ -404,7 +404,7 @@ def shop():
     pygame.draw.rect(screen, (83,82,87), rectangle)
     for i in range(len(constants.kitchenSelection)):
         currentItem = constants.kitchenSelection[i]
-        image = pygame.image.load(constants.itemPictures[currentItem[0]])
+        image = pygame.image.load(constants.itemPictures[currentItem[0]]).convert_alpha()
         img_rect = image.get_rect(topleft = (rectangle.x + 3, rectangle.y + 3 + i*27))
         screen.blit(image, img_rect) # Image
         name_surf = gamefont.render(f'{currentItem[0]}',False,(255,229,120))
@@ -416,6 +416,9 @@ def shop():
         name_surf = gamefont.render(f'{currentItem[2]}',False,(255,168,98))
         name_rect = name_surf.get_rect(midleft = (img_rect.midright[0] + 200, img_rect.centery))
         screen.blit(name_surf,name_rect) # Cost
+        money = pygame.image.load('images/GUI/money_symbol.png').convert_alpha()
+        money_rect = money.get_rect(midleft = (img_rect.midright[0] + 220, img_rect.centery))
+        screen.blit(money,money_rect) # Money icon
 
 
 
@@ -428,7 +431,7 @@ pygame.display.set_caption('Satellite Forge')
 pygame.display.set_icon(pygame.image.load('images/player.png'))
 clock = pygame.time.Clock()
 gamefont = pygame.font.Font('SatelliteForge-Regular.ttf', 25)
-gamefont_small = pygame.font.Font('SatelliteForge-Regular.ttf', 20)
+gamefont_small = pygame.font.Font('SatelliteForge-Regular.ttf', 23)
 gamemode = 'game' # Options: menu, game, pause
 floor = 1 # Options: 1, 2, 3
 moveLift = 0 # negative down, positive up
@@ -476,7 +479,7 @@ garbage = Garbage('images/interact/garbage.png','images/interact/garbage_white.p
 onions1 = Item('images/item/onion.png',(100,100),1,'onion',7,2)
 onions2 = Item('images/item/onion.png',(100,100),1,'onion',5,2)
 bottle = Item('images/item/waterbottle.png',(100,100),1,'water bottle',5,0,5)
-melon = Item('images/item/watermelon.png',(100,100),1,'watermelon',1,10)
+melon = Item('images/item/watermelon.png',(100,100),1,'watermelon',1,10,2)
 chest3.addItem(melon)
 chest3.addItem(onions1)
 chest3.addItem(onions2,5)
