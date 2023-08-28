@@ -5,6 +5,143 @@ import math
 # models imports also pygame, constants and random
 
 
+# Base class for interactable objects
+class Interactable(pygame.sprite.Sprite):
+
+    def draw():
+        pass
+
+# User controlled player
+class Player(pygame.sprite.Sprite):
+    def __init__(self, name, foodbar, waterbar):
+        super().__init__()
+        pic = pygame.image.load('images/player.png').convert()
+        self.image = pygame.transform.rotozoom(pic,0,1.5)
+        self.normal = self.image
+        self.flipped = pygame.transform.flip(self.image, True, False)
+        self.rect = self.image.get_rect(midbottom = (constants.worldWidth/2, constants.distFromGround))
+        self.gravity = 0
+        self.name = name
+        self.thirst = waterbar
+        self.hunger = foodbar
+        self.money = constants.startingCash
+
+    # All keyboard inputs from players are handled here
+    def player_input(self, world, walls):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_a]:
+            self.image = self.flipped
+            if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.left > 5:
+                self.rect.x -= constants.playerSpeed
+                for wall in walls:
+                    if self.rect.colliderect(wall.rect): 
+                        self.rect.x += constants.playerSpeed
+                        break
+        if keys[pygame.K_d]:
+            self.image = self.normal
+            if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.right < constants.worldWidth-5:
+                self.rect.x += constants.playerSpeed
+                for wall in walls:
+                    if self.rect.colliderect(wall.rect): 
+                        self.rect.x -= constants.playerSpeed
+                        break
+        if keys[pygame.K_SPACE] and self.rect.bottom >= constants.distFromGround:
+            self.gravity = -6
+
+    def apply_gravity(self):
+        self.gravity += 0.5
+        self.rect.y += int(self.gravity)
+        if self.rect.bottom >= constants.distFromGround:
+            self.rect.bottom = constants.distFromGround
+
+    def update(self, world, walls):
+        self.player_input(world, walls)
+        self.apply_gravity()
+        self.hunger.draw()
+        self.thirst.draw()
+
+    def alterHunger(self, amount):
+        self.hunger.alterStatus(amount)
+    
+
+class Background(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.transform.rotozoom(pygame.image.load('images/world/world.png').convert(),0,1.5)
+        self.rect = self.image.get_rect(center = (200,-1070))
+        self.objects: list[Interactable] = []
+
+    def addObject(self, object: Interactable): # OBJECTS MUST HAVE A DRAW() FUNCTION
+        self.objects.append(object)
+
+    def move(self, movex, movey=0):
+        self.rect.x += movex
+        self.rect.y += movey
+        for obj in self.objects:
+            obj.rect.x += movex
+            obj.rect.y += movey
+
+    def bg_input(self, player: Player, walls):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_d] and self.rect.right > constants.worldWidth and player.rect.center[0] >= 0.5*constants.worldWidth:
+            self.move(-constants.playerSpeed)
+            for wall in walls:
+                if player.rect.colliderect(wall.rect): 
+                    self.move(constants.playerSpeed)
+                    break
+        if keys[pygame.K_a] and self.rect.left < 0 and player.rect.center[0] <= 0.5*constants.worldWidth:
+            self.move(constants.playerSpeed)
+            for wall in walls:
+                if player.rect.colliderect(wall.rect): 
+                    self.move(-constants.playerSpeed)
+                    break
+
+    def update(self, player: Player, walls):
+        self.bg_input(player, walls)
+
+# All kinds of stuff that can be carried and held in inventory
+class Item:
+    def __init__(self, pic, pos, scale, name, amount=1, food=0, drink=0):
+        self.image = pygame.transform.rotozoom(pygame.image.load(pic).convert(),0,scale)
+        self.rect = self.image.get_rect(center = pos)
+        self.pic = pic
+        self.scale = scale
+        self.name = name
+        self.amount = max(min(amount, constants.itemStackSize[name]), 1) # Item amounts must stay inside the limits
+        self.food = food # Is the item edible and how much saturation it gives
+        self.drink = drink # Is the item drinkable and how much thirst it satisfies
+
+# Can store one item at mouse's position
+class HandItem:
+    def __init__(self):
+        self.item: Item = None
+        self.prevClick = 0
+
+    def render(self):
+        if self.item:
+            pos = pygame.mouse.get_pos()
+            self.item.rect = (pos[0]-14,pos[1]-16)
+            renderItem(self.item)
+            if player.sprite.rect.collidepoint(pos) and (self.item.food or self.item.drink):
+                if self.item.food:
+                    eat_surf = gamefont.render(f'eat {self.item.name} [E]',False,(0,0,0))
+                    eat_rect = eat_surf.get_rect(bottomleft = (pos))
+                    screen.blit(eat_surf,eat_rect)
+                if self.item.drink:
+                    drink_surf = gamefont.render(f'drink {self.item.name} [E]',False,(0,0,0))
+                    drink_rect = drink_surf.get_rect(bottomleft = (pos))
+                    screen.blit(drink_surf,drink_rect)
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_e] or pygame.mouse.get_pressed()[0]:
+                    if not self.prevClick:
+                        self.prevClick = 1
+                        if self.item.food:
+                            player.sprite.hunger.alterStatus(self.item.food)
+                        if self.item.drink:
+                            player.sprite.thirst.alterStatus(self.item.drink)
+                        self.item.amount -= 1
+                        if self.item.amount < 1: self.item = None
+                else: self.prevClick = 0
 
 class Button(Interactable):
     def __init__(self, pic, picL, pos, scale):
@@ -63,6 +200,7 @@ class Wall(Interactable):
     def draw(self, player):
         screen.blit(self.image, self.rect)
 
+# Can hold one item time on it
 class InventorySlot(pygame.sprite.Sprite):
     def __init__(self,pos):
         super().__init__()
@@ -79,34 +217,34 @@ class InventorySlot(pygame.sprite.Sprite):
             #item transfer
             global handItem
             mouse = pygame.mouse.get_pressed()
-            if mouse[0] or (mouse[2] and handItem and self.occupant):
+            if mouse[0] or (mouse[2] and handItem.item and self.occupant):
                 if not self.prevclick:
                     self.prevclick = 1
-                    if handItem and self.occupant and handItem.name == self.occupant.name:
+                    if handItem.item and self.occupant and handItem.item.name == self.occupant.name:
                         if mouse[0]:
-                            self.occupant.amount += handItem.amount
-                            handItem = None
+                            self.occupant.amount += handItem.item.amount
+                            handItem.item = None
                         else:
                             self.occupant.amount += 1
-                            handItem.amount -= 1
+                            handItem.item.amount -= 1
                     else:
-                        prevHand = handItem
-                        handItem = self.occupant
+                        prevHand = handItem.item
+                        handItem.item = self.occupant
                         self.occupant = prevHand
-            elif mouse[2] and handItem:
+            elif mouse[2] and handItem.item:
                 if not self.prevclick:
                     self.prevclick = 1
-                    self.occupant = Item(handItem.pic,handItem.rect,handItem.scale,handItem.name)
-                    handItem.amount = handItem.amount - 1
+                    self.occupant = Item(handItem.item.pic,handItem.item.rect,handItem.item.scale,handItem.item.name)
+                    handItem.item.amount = handItem.item.amount - 1
             elif mouse[2] and self.occupant:
                 if not self.prevclick:
                     self.prevclick = 1
                     half = math.ceil(self.occupant.amount/2)
                     self.occupant.amount -= half
-                    handItem = Item(self.occupant.pic,self.occupant.rect,self.occupant.scale,self.occupant.name,half)
+                    handItem.item = Item(self.occupant.pic,self.occupant.rect,self.occupant.scale,self.occupant.name,half)
             else: self.prevclick = 0
             if self.occupant and self.occupant.amount < 1: self.occupant = None
-            if handItem and handItem.amount < 1: handItem = None
+            if handItem.item and handItem.item.amount < 1: handItem.item = None
         else: screen.blit(self.image, self.rect)
         if self.occupant: # Item picture and quantity text
             self.occupant.rect = (self.rect.x+4, self.rect.y+3)
@@ -128,6 +266,7 @@ class InventorySlot(pygame.sprite.Sprite):
             self.occupant = None
             return toDel
 
+# A place to put items into
 class Inventory:
     def __init__(self, size):
         self.inventory: list[InventorySlot] = []
@@ -194,6 +333,7 @@ class Container(Interface):
         elif not n % 2: dimensions = (2,n/2)
         return dimensions
 
+# Deletes inserted items
 class Garbage(Interface):
     def __init__(self, pic, picW, x, y, scale):
         super().__init__(pic,picW,x,y,scale)
@@ -204,6 +344,7 @@ class Garbage(Interface):
             self.hole.draw((self.rect.center[0]-18, self.rect.y + 5))
             self.hole.removeItem()
 
+# Keeps track of player statistics
 class StatusBar(pygame.sprite.Sprite):
     def __init__(self, pic, piece, name, pos, scale=1):
         super().__init__()
@@ -212,7 +353,7 @@ class StatusBar(pygame.sprite.Sprite):
         self.piece = pygame.transform.rotozoom(pygame.image.load(piece).convert(),0,scale*1.2)
         self.pRect = self.piece.get_rect(topleft = (pos[0]+38, pos[1]+12))
         self.name = name
-        self.percent = 100
+        self.percent = 90
 
     def draw(self):
         for n in range(int(self.percent)):
@@ -227,6 +368,7 @@ class StatusBar(pygame.sprite.Sprite):
     def alterStatus(self, amount):
         self.percent = max(min((self.percent + amount),100),0)
 
+# Helper function for rendering elevator buttons
 def liftButtons(lift: Interface):
     global moveLift
     global floor
@@ -257,6 +399,18 @@ def renderItem(item: Item):
         number_rect = number.get_rect(center = (item.rect[0]+22, item.rect[1]+24))
         screen.blit(number, number_rect)
 
+def shop():
+    rectangle = pygame.Rect(300, 100, 300, 220)
+    pygame.draw.rect(screen, (83,82,87), rectangle)
+    for i in range(len(constants.kitchenSelection)):
+        currentItem = constants.kitchenSelection[i]
+        image = pygame.image.load(constants.itemPictures[currentItem[0]])
+        rect = image.get_rect(topleft = (rectangle.x + 5,rectangle.y + 5 + i*25))
+        screen.blit(image, rect)
+
+
+
+# THE CODE FOR THE GAME STARTS HERE:
 
 pygame.init()
 screen = pygame.display.set_mode((constants.worldWidth,constants.worldHeight))
@@ -267,11 +421,11 @@ gamefont = pygame.font.Font('SatelliteForge-Regular.ttf', 25)
 gamemode = 'game' # Options: menu, game, pause
 floor = 1 # Options: 1, 2, 3
 moveLift = 0 # negative down, positive up
-handItem: Item = None # Item currently in hand
+handItem = HandItem()
 
 inventory = Inventory(constants.playerInventorySize)
-foodbar = StatusBar('images/GUI/foodbar.png','images/GUI/foodbar%.png','Hunger',(30,30),1.5)
-waterbar = StatusBar('images/GUI/waterbar.png','images/GUI/waterbar%.png','Thirst',(30,70),1.5)
+foodbar = StatusBar('images/GUI/foodbar.png','images/GUI/foodbar%.png','Hunger',(10,10),1.5)
+waterbar = StatusBar('images/GUI/waterbar.png','images/GUI/waterbar%.png','Thirst',(10,50),1.5)
 
 # Menu screen
 menuBack = pygame.image.load('images/menu.jpg').convert()
@@ -304,59 +458,43 @@ cube3 = Container('images/interact/cube.png','images/interact/cube_white.png',-1
 box = Container('images/interact/box.png','images/interact/box_white.png',-1150,322,1.5,'box',4)
 containers: list[Container] = [chest1,chest2,chest3,barrel1,barrel2,barrel3,cube1,cube2,cube3,crate1,crate2,crate3,box]
 
+chef = Interface('images/interact/chef.png','images/interact/chef_white.png',-1710,-47,1.5)
+
 garbage = Garbage('images/interact/garbage.png','images/interact/garbage_white.png',629,388,1.5)
 
-onions1 = Item('images/item/onion.png',(100,100),1,'onion',7)
-onions2 = Item('images/item/onion.png',(100,100),1,'onion',5)
-melon = Item('images/item/watermelon.png',(100,100),1,'watermelon')
+onions1 = Item('images/item/onion.png',(100,100),1,'onion',7,2)
+onions2 = Item('images/item/onion.png',(100,100),1,'onion',5,2)
+bottle = Item('images/item/waterbottle.png',(100,100),1,'water bottle',5,0,5)
+melon = Item('images/item/watermelon.png',(100,100),1,'watermelon',1,10)
 chest3.addItem(melon)
 chest3.addItem(onions1)
-chest3.addItem(onions2,2)
+chest3.addItem(onions2,5)
+chest3.addItem(bottle)
 
 wall1 = Wall('images/interact/wall1.png',(-2616,-611))
 wall2 = Wall('images/interact/wall2.png',(-2640,-172))
 wall3 = Wall('images/interact/wall3.png',(1141,-653))
 wall4 = Wall('images/interact/wall4.png',(1070,-174))
 walls: list[Wall] = [wall1, wall2, wall3, wall4]
+
 back = Background()
+objects = pygame.sprite.Group() # "Background" updates objects' locations correctly and "objects" renders and draws them.
 back.addObject(liftOne)
 back.addObject(liftTwo)
 back.addObject(liftThree)
-back.addObject(chest1)
-back.addObject(chest2)
-back.addObject(chest3)
-back.addObject(barrel1)
-back.addObject(barrel2)
-back.addObject(barrel3)
-back.addObject(crate1)
-back.addObject(crate2)
-back.addObject(crate3)
-back.addObject(cube1)
-back.addObject(cube2)
-back.addObject(cube3)
-back.addObject(box)
+back.addObject(chef)
 back.addObject(garbage)
-back.addObject(wall1)
-back.addObject(wall2)
-back.addObject(wall3)
-back.addObject(wall4)
+objects.add(garbage)
+for wall in walls:
+        back.addObject(wall)
+for container in containers:
+        back.addObject(container)
+        objects.add(container)
+
+
 background = pygame.sprite.GroupSingle()
 background.add(back)
-objects = pygame.sprite.Group()
-objects.add(chest1)
-objects.add(chest2)
-objects.add(chest3)
-objects.add(barrel1)
-objects.add(barrel2)
-objects.add(barrel3)
-objects.add(crate1)
-objects.add(crate2)
-objects.add(crate3)
-objects.add(cube1)
-objects.add(cube2)
-objects.add(cube3)
-objects.add(box)
-objects.add(garbage)
+
 player = pygame.sprite.GroupSingle()
 player.add(Player('Steve', foodbar, waterbar))
 
@@ -403,6 +541,10 @@ while True:
         elif liftThree.draw(player.sprite):
             liftButtons(liftThree)
 
+        if chef.draw(player.sprite):
+            shop()
+        shop()
+
         #objects.draw(screen)
         objects.update(player.sprite)
 
@@ -414,15 +556,9 @@ while True:
         player.update(background.sprite, walls)
 
         inventory.draw()
-        foodbar.draw()
-        waterbar.draw()
+        handItem.render()
 
-        if handItem:
-            pos = pygame.mouse.get_pos()
-            handItem.rect = (pos[0]-14,pos[1]-16)
-            renderItem(handItem)
 
-        
 
     else: # gamemode == 'pause'
         screen.fill((94,129,162))

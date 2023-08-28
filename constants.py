@@ -20,6 +20,7 @@ itemStackSize = {'empty bottle': 5,
                  'ice cream': 5,
                  'onion': 16,
                  'potato': 16,
+                 'apple': 10,
                  'watermelon': 1}
 
 # Research Center availability
@@ -43,9 +44,20 @@ upgradeExpansions = [['small container', 'small study', 'small solar panel', 'sm
 # Kitchens selection of buyable foods with name, amount and cost
 kitchenSelection = [['onion', 16, 10],
                     ['potato', 16, 16],
+                    ['apple', 16, 20],
                     ['watermelon', 1, 8],
                     ['ice cream', 5, 12],
                     ['food ration', 10, 40],
                     ['fizzy drink', 5, 10],
                     ['water bottle', 5, 2]]
 
+# Pictures of all the items
+itemPictures = {'empty bottle': 'images/item/emptybottle.png',
+                 'water bottle': 'images/item/waterbottle.png',
+                 'fizzy drink': 'images/item/fizzydrink.png',
+                 'food ration': 'images/item/foodration.png',
+                 'ice cream': 'images/item/icecream.png',
+                 'onion': 'images/item/onion.png',
+                 'potato': 'images/item/potato.png',
+                 'apple': 'images/item/apple.png',
+                 'watermelon': 'images/item/watermelon.png'}

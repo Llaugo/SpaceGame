@@ -5,114 +5,6 @@ import random
 
 # Models
 
-# Base class for interactable objects
-class Interactable(pygame.sprite.Sprite):
-
-    def draw():
-        pass
-
-# User controlled player
-class Player(pygame.sprite.Sprite):
-    def __init__(self, name, foodbar, waterbar):
-        super().__init__()
-        pic = pygame.image.load('images/player.png').convert()
-        self.image = pygame.transform.rotozoom(pic,0,1.5)
-        self.normal = self.image
-        self.flipped = pygame.transform.flip(self.image, True, False)
-        self.rect = self.image.get_rect(midbottom = (constants.worldWidth/2, constants.distFromGround))
-        self.gravity = 0
-        self.name = name
-        self.thirst = waterbar
-        self.hunger = foodbar
-        self.money = constants.startingCash
-
-    # All keyboard inputs from players are handled here
-    def player_input(self, world, walls):
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_a]:
-            self.image = self.flipped
-            if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.left > 5:
-                self.rect.x -= constants.playerSpeed
-                for wall in walls:
-                    if self.rect.colliderect(wall.rect): 
-                        self.rect.x += constants.playerSpeed
-                        break
-        if keys[pygame.K_d]:
-            self.image = self.normal
-            if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.right < constants.worldWidth-5:
-                self.rect.x += constants.playerSpeed
-                for wall in walls:
-                    if self.rect.colliderect(wall.rect): 
-                        self.rect.x -= constants.playerSpeed
-                        break
-        if keys[pygame.K_SPACE] and self.rect.bottom >= constants.distFromGround:
-            self.gravity = -6
-
-    def apply_gravity(self):
-        self.gravity += 0.5
-        self.rect.y += int(self.gravity)
-        if self.rect.bottom >= constants.distFromGround:
-            self.rect.bottom = constants.distFromGround
-
-    def update(self, world, walls):
-        self.player_input(world, walls)
-        self.apply_gravity()
-    
-
-
-class Background(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
-        self.image = pygame.transform.rotozoom(pygame.image.load('images/world/world.png').convert(),0,1.5)
-        self.rect = self.image.get_rect(center = (200,-1070))
-        self.objects: list[Interactable] = []
-
-    def addObject(self, object: Interactable): # OBJECTS MUST HAVE A DRAW() FUNCTION
-        self.objects.append(object)
-
-    def move(self, movex, movey=0):
-        self.rect.x += movex
-        self.rect.y += movey
-        for obj in self.objects:
-            obj.rect.x += movex
-            obj.rect.y += movey
-
-    def bg_input(self, player: Player, walls):
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_d] and self.rect.right > constants.worldWidth and player.rect.center[0] >= 0.5*constants.worldWidth:
-            self.move(-constants.playerSpeed)
-            for wall in walls:
-                if player.rect.colliderect(wall.rect): 
-                    self.move(constants.playerSpeed)
-                    break
-        if keys[pygame.K_a] and self.rect.left < 0 and player.rect.center[0] <= 0.5*constants.worldWidth:
-            self.move(constants.playerSpeed)
-            for wall in walls:
-                if player.rect.colliderect(wall.rect): 
-                    self.move(-constants.playerSpeed)
-                    break
-
-    def update(self, player: Player, walls):
-        self.bg_input(player, walls)
-
-
-
-# Non-playable characters that can be interacted with
-class NPC:
-    pass
-
-
-# All kinds of stuff that can be carried and held in inventory
-class Item:
-    def __init__(self, pic, pos, scale, name, amount=1):
-        self.image = pygame.transform.rotozoom(pygame.image.load(pic).convert(),0,scale)
-        self.rect = self.image.get_rect(center = pos)
-        self.pic = pic
-        self.scale = scale
-        self.name = name
-        self.amount = max(min(amount, constants.itemStackSize[name]), 1) # Item amounts must stay inside the limits
-
-
 
 # Container for water
 class WaterTank:
@@ -131,6 +23,11 @@ class WaterTank:
     def pour(self, quantity):
         self.amount = max(0, self.amount - quantity)
         print('tank poured, amount left: ' + str(self.amount))
+
+
+# Non-playable characters that can be interacted with
+class NPC:
+    pass
 
 
 # All the different areas in the ground segment
