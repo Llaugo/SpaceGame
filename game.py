@@ -25,6 +25,8 @@ class Player(pygame.sprite.Sprite):
         self.thirst = waterbar
         self.hunger = foodbar
         self.money = constants.startingCash
+        self.money_img = pygame.transform.rotozoom(pygame.image.load('images/GUI/money_icon.png').convert_alpha(),0,1.5)
+        self.money_rect = self.money_img.get_rect(topleft = (10,90))
 
     # All keyboard inputs from players are handled here
     def player_input(self, world, walls):
@@ -59,10 +61,16 @@ class Player(pygame.sprite.Sprite):
         self.apply_gravity()
         self.hunger.draw()
         self.thirst.draw()
+        # Money
+        screen.blit(self.money_img, self.money_rect)
+        money_surf = gamefont_large.render(f'{self.money}',False,(255,229,120))
+        moneyimg_rect = money_surf.get_rect(topleft = (50,93))
+        screen.blit(money_surf,moneyimg_rect)
+        
 
     def alterHunger(self, amount):
-        self.hunger.alterStatus(amount)
-    
+        self.hunger.alterStatus(amount)   
+
 
 class Background(pygame.sprite.Sprite):
     def __init__(self):
@@ -368,6 +376,73 @@ class StatusBar(pygame.sprite.Sprite):
     def alterStatus(self, amount):
         self.percent = max(min((self.percent + amount),100),0)
 
+# Player can buy fooditems with chef's interface
+class Chef(Interface):
+    def __init__(self,pic,picW,x,y,scale):
+        super().__init__(pic,picW,x,y,scale)
+        self.order = []
+        self.cost = 0
+        self.plusbuttons = []
+        self.minusbuttons = []
+        for i in range(len(constants.kitchenSelection)):
+            self.plusbuttons.append(Button('images/GUI/plus.png','images/GUI/plus_white.png',(0,0),0.8))
+            self.minusbuttons.append(Button('images/GUI/minus.png','images/GUI/minus_white.png',(0,0),0.8))
+        self.orderButton = Button('images/GUI/orderbutton.png','images/GUI/orderbutton_light.png',(0,0),1)
+
+    def update(self,player):
+        if self.draw(player):
+            rectangle = pygame.Rect(self.rect.x-200, 90, 370, 230)
+            pygame.draw.rect(screen, (83,82,87), rectangle)
+            for i in range(len(constants.kitchenSelection)):
+                currentItem = constants.kitchenSelection[i]
+                image = pygame.image.load(constants.itemPictures[currentItem[0]]).convert_alpha()
+                img_rect = image.get_rect(topleft = (rectangle.x + 3, rectangle.y + 3 + i*27))
+                screen.blit(image, img_rect) # Image
+                text_surf = gamefont.render(f'{currentItem[0]}',False,(255,229,120))
+                text_rect = text_surf.get_rect(midleft = (img_rect.midright[0] + 5, img_rect.centery))
+                screen.blit(text_surf,text_rect) # Name
+                text_surf = gamefont.render(f'{currentItem[1]} pcs',False,(255,229,120))
+                text_rect = text_surf.get_rect(midleft = (img_rect.midright[0] + 130, img_rect.centery))
+                screen.blit(text_surf,text_rect) # Amount
+                text_surf = gamefont.render(f'{currentItem[2]}',False,(255,168,98))
+                text_rect = text_surf.get_rect(midleft = (img_rect.midright[0] + 200, img_rect.centery))
+                screen.blit(text_surf,text_rect) # Cost
+                money = pygame.image.load('images/GUI/money_symbol.png').convert_alpha()
+                money_rect = money.get_rect(midleft = (img_rect.midright[0] + 220, img_rect.centery))
+                screen.blit(money,money_rect) # Money icon
+                self.plusbuttons[i].rect.center = (img_rect.midright[0] + 250, img_rect.centery)
+                self.minusbuttons[i].rect.center = (img_rect.midright[0] + 275, img_rect.centery)
+                if self.plusbuttons[i].draw():
+                    self.order.append(currentItem)
+                    self.cost += currentItem[2]
+                if self.minusbuttons[i].draw():
+                    for i in range(len(self.order)):
+                        if self.order[i][0] == currentItem[0]:
+                            self.cost -= self.order[i][2]
+                            self.order.pop(i)
+                            break
+                amount = 0
+                for item in self.order:
+                    if item[0] == currentItem[0]: amount += 1
+                text_surf = gamefont.render(f'{amount}',False,(0,0,0))
+                text_rect = text_surf.get_rect(midleft = (img_rect.midright[0] + 300, img_rect.centery))
+                screen.blit(text_surf,text_rect) # Amount ordered
+            self.orderButton.rect.center = rectangle.bottomright
+            if self.orderButton.draw():
+                global containers,back,objects
+                player.money -= self.cost
+                box = Container('images/interact/box.png','images/interact/box_white.png',100,450,1.5,'box',4)
+                for item in self.order:
+                    box.addItem(Item(constants.itemPictures[item[0]],(0,0),1,item[0],item[1])) # PROBLEM WITH FOOD AND DRINK
+                containers.append(box)
+                back.addObject(box)
+                objects.add(box)
+                self.order = []
+                self.cost = 0
+
+
+
+
 # Helper function for rendering elevator buttons
 def liftButtons(lift: Interface):
     global moveLift
@@ -399,28 +474,7 @@ def renderItem(item: Item):
         number_rect = number.get_rect(center = (item.rect[0]+22, item.rect[1]+24))
         screen.blit(number, number_rect)
 
-def shop():
-    rectangle = pygame.Rect(300, 100, 300, 230)
-    pygame.draw.rect(screen, (83,82,87), rectangle)
-    for i in range(len(constants.kitchenSelection)):
-        currentItem = constants.kitchenSelection[i]
-        image = pygame.image.load(constants.itemPictures[currentItem[0]]).convert_alpha()
-        img_rect = image.get_rect(topleft = (rectangle.x + 3, rectangle.y + 3 + i*27))
-        screen.blit(image, img_rect) # Image
-        name_surf = gamefont.render(f'{currentItem[0]}',False,(255,229,120))
-        name_rect = name_surf.get_rect(midleft = (img_rect.midright[0] + 5, img_rect.centery))
-        screen.blit(name_surf,name_rect) # Name
-        name_surf = gamefont.render(f'{currentItem[1]}',False,(255,229,120))
-        name_rect = name_surf.get_rect(midleft = (img_rect.midright[0] + 130, img_rect.centery))
-        screen.blit(name_surf,name_rect) # Amount
-        name_surf = gamefont.render(f'{currentItem[2]}',False,(255,168,98))
-        name_rect = name_surf.get_rect(midleft = (img_rect.midright[0] + 200, img_rect.centery))
-        screen.blit(name_surf,name_rect) # Cost
-        money = pygame.image.load('images/GUI/money_symbol.png').convert_alpha()
-        money_rect = money.get_rect(midleft = (img_rect.midright[0] + 220, img_rect.centery))
-        screen.blit(money,money_rect) # Money icon
-
-
+    
 
 
 # THE CODE FOR THE GAME STARTS HERE:
@@ -432,6 +486,7 @@ pygame.display.set_icon(pygame.image.load('images/player.png'))
 clock = pygame.time.Clock()
 gamefont = pygame.font.Font('SatelliteForge-Regular.ttf', 25)
 gamefont_small = pygame.font.Font('SatelliteForge-Regular.ttf', 23)
+gamefont_large = pygame.font.Font('SatelliteForge-Regular.ttf', 50)
 gamemode = 'game' # Options: menu, game, pause
 floor = 1 # Options: 1, 2, 3
 moveLift = 0 # negative down, positive up
@@ -472,7 +527,7 @@ cube3 = Container('images/interact/cube.png','images/interact/cube_white.png',-1
 box = Container('images/interact/box.png','images/interact/box_white.png',-1150,322,1.5,'box',4)
 containers: list[Container] = [chest1,chest2,chest3,barrel1,barrel2,barrel3,cube1,cube2,cube3,crate1,crate2,crate3,box]
 
-chef = Interface('images/interact/chef.png','images/interact/chef_white.png',-1710,-47,1.5)
+chef = Chef('images/interact/chef.png','images/interact/chef_white.png',-1710,-47,1.5)
 
 garbage = Garbage('images/interact/garbage.png','images/interact/garbage_white.png',629,388,1.5)
 
@@ -498,6 +553,7 @@ back.addObject(liftTwo)
 back.addObject(liftThree)
 back.addObject(chef)
 back.addObject(garbage)
+objects.add(chef)
 objects.add(garbage)
 for wall in walls:
         back.addObject(wall)
@@ -555,10 +611,6 @@ while True:
         elif liftThree.draw(player.sprite):
             liftButtons(liftThree)
 
-        if chef.draw(player.sprite):
-            shop()
-        shop()
-
         #objects.draw(screen)
         objects.update(player.sprite)
 
@@ -580,4 +632,4 @@ while True:
         if resumeButton.draw(): gamemode = 'game'
 
     pygame.display.update()
-    clock.tick(60)
+    clock.tick(160)
