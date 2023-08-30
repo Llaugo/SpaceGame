@@ -12,16 +12,16 @@ playerInventorySize = 8
 startingCash = 1000
 
 
-# Item stats
-itemStackSize = {'empty bottle': 5,
-                 'water bottle': 5,
-                 'fizzy drink': 5,
-                 'food ration': 10,
-                 'ice cream': 5,
-                 'onion': 16,
-                 'potato': 16,
-                 'apple': 10,
-                 'watermelon': 1}
+# Item stats: images, stack size, food, drink
+itemStats = {'empty bottle': ('images/item/emptybottle.png', 5, 0, 0),
+             'water bottle': ('images/item/waterbottle.png', 5, 0, 6),
+             'fizzy drink': ('images/item/fizzydrink.png', 5, 0, 8),
+             'food ration': ('images/item/foodration.png', 10, 8, 0),
+             'ice cream': ('images/item/icecream.png', 5, 4, 0),
+             'onion': ('images/item/onion.png', 16, 1, 0),
+             'potato': ('images/item/potato.png', 16, 2, 0),
+             'apple': ('images/item/apple.png', 10, 4, 0),
+             'watermelon': ('images/item/watermelon.png', 1, 10, 3)}
 
 # Research Center availability
 upgradeExpansions = [['small container', 'small study', 'small solar panel', 'small room'],
@@ -49,15 +49,5 @@ kitchenSelection = [['onion', 16, 10],
                     ['ice cream', 5, 12],
                     ['food ration', 10, 40],
                     ['fizzy drink', 5, 10],
-                    ['water bottle', 5, 2]]
+                    ['water bottle', 5, 7]]
 
-# Pictures of all the items
-itemPictures = {'empty bottle': 'images/item/emptybottle.png',
-                 'water bottle': 'images/item/waterbottle.png',
-                 'fizzy drink': 'images/item/fizzydrink.png',
-                 'food ration': 'images/item/foodration.png',
-                 'ice cream': 'images/item/icecream.png',
-                 'onion': 'images/item/onion.png',
-                 'potato': 'images/item/potato.png',
-                 'apple': 'images/item/apple.png',
-                 'watermelon': 'images/item/watermelon.png'}

@@ -1,8 +1,10 @@
 from sys import exit
-from models import *
+import pygame
+import constants
+import random
 import math
 
-# models imports also pygame, constants and random
+
 
 
 # Base class for interactable objects
@@ -31,7 +33,7 @@ class Player(pygame.sprite.Sprite):
     # All keyboard inputs from players are handled here
     def player_input(self, world, walls):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_a]:
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
             self.image = self.flipped
             if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.left > 5:
                 self.rect.x -= constants.playerSpeed
@@ -39,7 +41,7 @@ class Player(pygame.sprite.Sprite):
                     if self.rect.colliderect(wall.rect): 
                         self.rect.x += constants.playerSpeed
                         break
-        if keys[pygame.K_d]:
+        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
             self.image = self.normal
             if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.right < constants.worldWidth-5:
                 self.rect.x += constants.playerSpeed
@@ -63,7 +65,7 @@ class Player(pygame.sprite.Sprite):
         self.thirst.draw()
         # Money
         screen.blit(self.money_img, self.money_rect)
-        money_surf = gamefont_large.render(f'{self.money}',False,(255,229,120))
+        money_surf = gamefont_large.render(f'{self.money}$',False,(255,229,120))
         moneyimg_rect = money_surf.get_rect(topleft = (50,93))
         screen.blit(money_surf,moneyimg_rect)
         
@@ -91,13 +93,13 @@ class Background(pygame.sprite.Sprite):
 
     def bg_input(self, player: Player, walls):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_d] and self.rect.right > constants.worldWidth and player.rect.center[0] >= 0.5*constants.worldWidth:
+        if (keys[pygame.K_d] or keys[pygame.K_RIGHT]) and self.rect.right > constants.worldWidth and player.rect.center[0] >= 0.5*constants.worldWidth:
             self.move(-constants.playerSpeed)
             for wall in walls:
                 if player.rect.colliderect(wall.rect): 
                     self.move(constants.playerSpeed)
                     break
-        if keys[pygame.K_a] and self.rect.left < 0 and player.rect.center[0] <= 0.5*constants.worldWidth:
+        if (keys[pygame.K_a] or keys[pygame.K_LEFT]) and self.rect.left < 0 and player.rect.center[0] <= 0.5*constants.worldWidth:
             self.move(constants.playerSpeed)
             for wall in walls:
                 if player.rect.colliderect(wall.rect): 
@@ -115,7 +117,7 @@ class Item:
         self.pic = pic
         self.scale = scale
         self.name = name
-        self.amount = max(min(amount, constants.itemStackSize[name]), 1) # Item amounts must stay inside the limits
+        self.amount = max(min(amount, constants.itemStats[name][1]), 1) # Item amounts must stay inside the limits
         self.food = food # Is the item edible and how much saturation it gives
         self.drink = drink # Is the item drinkable and how much thirst it satisfies
 
@@ -132,11 +134,11 @@ class HandItem:
             renderItem(self.item)
             if player.sprite.rect.collidepoint(pos) and (self.item.food or self.item.drink):
                 if self.item.food:
-                    eat_surf = gamefont_small.render(f'eat {self.item.name} [E]',False,(0,0,0))
+                    eat_surf = gamefont_small.render(f'eat {self.item.name} (E)',False,(0,0,0))
                     eat_rect = eat_surf.get_rect(bottomleft = (pos))
                     screen.blit(eat_surf,eat_rect)
                 elif self.item.drink:
-                    drink_surf = gamefont_small.render(f'drink {self.item.name} [E]',False,(0,0,0))
+                    drink_surf = gamefont_small.render(f'drink {self.item.name} (E)',False,(0,0,0))
                     drink_rect = drink_surf.get_rect(bottomleft = (pos))
                     screen.blit(drink_surf,drink_rect)
                 keys = pygame.key.get_pressed()
@@ -151,6 +153,7 @@ class HandItem:
                         if self.item.amount < 1: self.item = None
                 else: self.prevClick = 0
 
+# Class for clickable objects
 class Button(Interactable):
     def __init__(self, pic, picL, pos, scale):
         super().__init__()
@@ -229,10 +232,12 @@ class InventorySlot(pygame.sprite.Sprite):
                 if not self.prevclick:
                     self.prevclick = 1
                     if handItem.item and self.occupant and handItem.item.name == self.occupant.name:
+                        maximum = constants.itemStats[self.occupant.name][1]
                         if mouse[0]:
-                            self.occupant.amount += handItem.item.amount
-                            handItem.item = None
-                        else:
+                            overflow = self.occupant.amount + handItem.item.amount - maximum
+                            self.occupant.amount = min(handItem.item.amount+self.occupant.amount,maximum)
+                            handItem.item.amount = overflow
+                        elif self.occupant.amount != maximum:
                             self.occupant.amount += 1
                             handItem.item.amount -= 1
                     else:
@@ -242,14 +247,14 @@ class InventorySlot(pygame.sprite.Sprite):
             elif mouse[2] and handItem.item:
                 if not self.prevclick:
                     self.prevclick = 1
-                    self.occupant = Item(handItem.item.pic,handItem.item.rect,handItem.item.scale,handItem.item.name,1,handItem.item.food,handItem.item.drink)
+                    self.occupant = itemCreator(handItem.item.name, 1)
                     handItem.item.amount = handItem.item.amount - 1
             elif mouse[2] and self.occupant:
                 if not self.prevclick:
                     self.prevclick = 1
                     half = math.ceil(self.occupant.amount/2)
                     self.occupant.amount -= half
-                    handItem.item = Item(self.occupant.pic,self.occupant.rect,self.occupant.scale,self.occupant.name,half,self.occupant.food,self.occupant.drink)
+                    handItem.item = itemCreator(self.occupant.name, half)
             else: self.prevclick = 0
             if self.occupant and self.occupant.amount < 1: self.occupant = None
             if handItem.item and handItem.item.amount < 1: handItem.item = None
@@ -263,7 +268,7 @@ class InventorySlot(pygame.sprite.Sprite):
         if not item: return True
         elif not self.occupant:
             self.occupant = item
-        elif self.occupant.name == item.name:
+        elif self.occupant.name == item.name and self.occupant.amount < constants.itemStats[self.occupant.name][1]:
             self.occupant.amount += item.amount
         else: return False
         return True
@@ -369,7 +374,7 @@ class StatusBar(pygame.sprite.Sprite):
         screen.blit(self.image, self.rect)
         mouse_pos = pygame.mouse.get_pos()
         if self.rect.collidepoint(mouse_pos):
-            status_surf = gamefont_small.render(f'{self.name} is at {self.percent} percent',False,(0,0,0))
+            status_surf = gamefont_small.render(f'{self.name}: {self.percent}%',False,(0,0,0))
             status_rect = score_surf.get_rect(bottomleft = (mouse_pos))
             screen.blit(status_surf,status_rect)
 
@@ -380,7 +385,7 @@ class StatusBar(pygame.sprite.Sprite):
 class Chef(Interface):
     def __init__(self,pic,picW,x,y,scale):
         super().__init__(pic,picW,x,y,scale)
-        self.order = []
+        self.order = [] # list[(Name, amount, cost)]
         self.cost = 0
         self.plusbuttons = []
         self.minusbuttons = []
@@ -388,28 +393,30 @@ class Chef(Interface):
             self.plusbuttons.append(Button('images/GUI/plus.png','images/GUI/plus_white.png',(0,0),0.8))
             self.minusbuttons.append(Button('images/GUI/minus.png','images/GUI/minus_white.png',(0,0),0.8))
         self.orderButton = Button('images/GUI/orderbutton.png','images/GUI/orderbutton_light.png',(0,0),1)
+        self.errorTextTime = 0
+        self.errorText = ''
+        
 
     def update(self,player):
+        if self.errorTextTime: self.errorTextTime -= 1
         if self.draw(player):
-            rectangle = pygame.Rect(self.rect.x-200, 90, 370, 230)
-            pygame.draw.rect(screen, (83,82,87), rectangle)
-            for i in range(len(constants.kitchenSelection)):
+            shop = pygame.transform.rotozoom(pygame.image.load('images/GUI/shopback.png').convert_alpha(),0,1.1)
+            shop_rect = shop.get_rect(midbottom = (self.rect.midtop[0],self.rect.midtop[1]+8))
+            screen.blit(shop,shop_rect)
+            for i in range(len(constants.kitchenSelection)): # Table of available items
                 currentItem = constants.kitchenSelection[i]
-                image = pygame.image.load(constants.itemPictures[currentItem[0]]).convert_alpha()
-                img_rect = image.get_rect(topleft = (rectangle.x + 3, rectangle.y + 3 + i*27))
+                image = pygame.image.load(constants.itemStats[currentItem[0]][0]).convert_alpha()
+                img_rect = image.get_rect(topleft = (shop_rect.x + 15, shop_rect.y + 15 + i*27))
                 screen.blit(image, img_rect) # Image
-                text_surf = gamefont.render(f'{currentItem[0]}',False,(255,229,120))
+                text_surf = gamefont.render(f'{currentItem[0]}',False,(0,0,0))
                 text_rect = text_surf.get_rect(midleft = (img_rect.midright[0] + 5, img_rect.centery))
                 screen.blit(text_surf,text_rect) # Name
-                text_surf = gamefont.render(f'{currentItem[1]} pcs',False,(255,229,120))
+                text_surf = gamefont.render(f'{currentItem[1]} pcs',False,(0,0,0))
                 text_rect = text_surf.get_rect(midleft = (img_rect.midright[0] + 130, img_rect.centery))
                 screen.blit(text_surf,text_rect) # Amount
-                text_surf = gamefont.render(f'{currentItem[2]}',False,(255,168,98))
+                text_surf = gamefont.render(f'{currentItem[2]}$',False,(255,229,120))
                 text_rect = text_surf.get_rect(midleft = (img_rect.midright[0] + 200, img_rect.centery))
                 screen.blit(text_surf,text_rect) # Cost
-                money = pygame.image.load('images/GUI/money_symbol.png').convert_alpha()
-                money_rect = money.get_rect(midleft = (img_rect.midright[0] + 220, img_rect.centery))
-                screen.blit(money,money_rect) # Money icon
                 self.plusbuttons[i].rect.center = (img_rect.midright[0] + 250, img_rect.centery)
                 self.minusbuttons[i].rect.center = (img_rect.midright[0] + 275, img_rect.centery)
                 if self.plusbuttons[i].draw():
@@ -427,20 +434,46 @@ class Chef(Interface):
                 text_surf = gamefont.render(f'{amount}',False,(0,0,0))
                 text_rect = text_surf.get_rect(midleft = (img_rect.midright[0] + 300, img_rect.centery))
                 screen.blit(text_surf,text_rect) # Amount ordered
-            self.orderButton.rect.center = rectangle.bottomright
+            # Current order data
+            text_surf = gamefont_small.render(f'items',False,(0,0,0))
+            text_rect = text_surf.get_rect(center = (shop_rect.bottomright[0]-58,shop_rect.bottomright[1]-160))
+            screen.blit(text_surf,text_rect) # Text
+            text_surf = gamefont_small.render(f'selected',False,(0,0,0))
+            text_rect = text_surf.get_rect(center = (shop_rect.bottomright[0]-58,shop_rect.bottomright[1]-140))
+            screen.blit(text_surf,text_rect) # Text
+            text_surf = gamefont.render(f'{len(self.order)}/4',False,(0,0,0))
+            text_rect = text_surf.get_rect(center = (shop_rect.bottomright[0]-58,shop_rect.bottomright[1]-120))
+            screen.blit(text_surf,text_rect) # Amount of items
+            text_surf = gamefont.render(f'price: {self.cost}$',False,(255,229,120))
+            text_rect = text_surf.get_rect(center = (shop_rect.bottomright[0]-58,shop_rect.bottomright[1]-65))
+            screen.blit(text_surf,text_rect) # Cost of the whole order
+            self.orderButton.rect.center = (shop_rect.bottomright[0]-58,shop_rect.bottomright[1]-35)
+            if self.errorTextTime:
+                text = gamefont.render(f'{self.errorText}',False,(255,255,255))
+                screen.blit(text,text.get_rect(midbottom = self.rect.midtop))
+
             if self.orderButton.draw():
-                global containers,back,objects
-                player.money -= self.cost
-                box = Container('images/interact/box.png','images/interact/box_white.png',100,450,1.5,'box',4)
-                for item in self.order:
-                    box.addItem(Item(constants.itemPictures[item[0]],(0,0),1,item[0],item[1])) # PROBLEM WITH FOOD AND DRINK
-                containers.append(box)
-                back.addObject(box)
-                objects.add(box)
-                self.order = []
-                self.cost = 0
-
-
+                if 0 < len(self.order) < 5:
+                    if player.money - self.cost >= 0:
+                        global containers,back,objects
+                        player.money -= self.cost
+                        box = Container('images/interact/box.png','images/interact/box_white.png',300,443,1.5,'box',4)
+                        for item in self.order:
+                            box.addItem(itemCreator(item[0],item[1]))
+                        containers.append(box)
+                        back.addObject(box)
+                        objects.add(box)
+                        self.order = []
+                        self.cost = 0
+                    else:
+                        self.errorText = 'The order is too expensive'
+                        self.errorTextTime = 100
+                elif not len(self.order):
+                    self.errorText = 'The order is empty'
+                    self.errorTextTime = 100
+                else:
+                    self.errorText = 'The order is too big'
+                    self.errorTextTime = 100
 
 
 # Helper function for rendering elevator buttons
@@ -467,6 +500,7 @@ def liftButtons(lift: Interface):
         else: pass
         floor = 3
 
+# Renders given item
 def renderItem(item: Item):
     screen.blit(item.image, item.rect)
     if item.amount != 1:
@@ -474,7 +508,13 @@ def renderItem(item: Item):
         number_rect = number.get_rect(center = (item.rect[0]+22, item.rect[1]+24))
         screen.blit(number, number_rect)
 
+# Helper function for creating items
+def itemCreator(name: str, amount: int):
+    item = constants.itemStats[name]
+    return Item(item[0],(0,0),1,name,amount,item[2],item[3])
     
+
+
 
 
 # THE CODE FOR THE GAME STARTS HERE:
@@ -531,10 +571,10 @@ chef = Chef('images/interact/chef.png','images/interact/chef_white.png',-1710,-4
 
 garbage = Garbage('images/interact/garbage.png','images/interact/garbage_white.png',629,388,1.5)
 
-onions1 = Item('images/item/onion.png',(100,100),1,'onion',7,2)
-onions2 = Item('images/item/onion.png',(100,100),1,'onion',5,2)
-bottle = Item('images/item/waterbottle.png',(100,100),1,'water bottle',5,0,5)
-melon = Item('images/item/watermelon.png',(100,100),1,'watermelon',1,10,2)
+onions1 = itemCreator('onion', 7)
+onions2 = itemCreator('onion', 5)
+bottle = itemCreator('water bottle', 5)
+melon = itemCreator('watermelon', 1)
 chest3.addItem(melon)
 chest3.addItem(onions1)
 chest3.addItem(onions2,5)
@@ -568,6 +608,9 @@ background.add(back)
 player = pygame.sprite.GroupSingle()
 player.add(Player('Steve', foodbar, waterbar))
 
+
+
+# THE MAIN GAME LOOP
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -611,7 +654,6 @@ while True:
         elif liftThree.draw(player.sprite):
             liftButtons(liftThree)
 
-        #objects.draw(screen)
         objects.update(player.sprite)
 
         score_surf = gamefont.render(f'hunger is at {foodbar.percent}',False,(50,50,50))

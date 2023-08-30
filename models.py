@@ -1,6 +1,4 @@
-import pygame
-import constants
-import random
+
 
 
 # Models
