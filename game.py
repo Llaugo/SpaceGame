@@ -21,7 +21,10 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.transform.rotozoom(pic,0,1.5)
         self.normal = self.image
         self.flipped = pygame.transform.flip(self.image, True, False)
+        self.img_withBox = pygame.transform.rotozoom(pygame.image.load('images/playerWithBox.png').convert_alpha(),0,1.5)
+        self.flipped_withBox = pygame.transform.flip(self.img_withBox,True,False)
         self.rect = self.image.get_rect(midbottom = (constants.worldWidth/2, constants.distFromGround))
+        self.speed = constants.playerSpeed
         self.gravity = 0
         self.name = name
         self.thirst = waterbar
@@ -29,28 +32,37 @@ class Player(pygame.sprite.Sprite):
         self.money = constants.startingCash
         self.money_img = pygame.transform.rotozoom(pygame.image.load('images/GUI/money_icon.png').convert_alpha(),0,1.5)
         self.money_rect = self.money_img.get_rect(topleft = (10,90))
+        self.box: Container = None
+        self.prevClick = 1
 
     # All keyboard inputs from players are handled here
     def player_input(self, world, walls):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a] or keys[pygame.K_LEFT]:
-            self.image = self.flipped
+            if self.box: self.image = self.flipped_withBox
+            else: self.image = self.flipped
             if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.left > 5:
-                self.rect.x -= constants.playerSpeed
+                self.rect.x -= self.speed
                 for wall in walls:
                     if self.rect.colliderect(wall.rect): 
-                        self.rect.x += constants.playerSpeed
+                        self.rect.x += self.speed
                         break
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-            self.image = self.normal
+            if self.box: self.image = self.img_withBox
+            else: self.image = self.normal
             if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.right < constants.worldWidth-5:
-                self.rect.x += constants.playerSpeed
+                self.rect.x += self.speed
                 for wall in walls:
                     if self.rect.colliderect(wall.rect): 
-                        self.rect.x -= constants.playerSpeed
+                        self.rect.x -= self.speed
                         break
         if keys[pygame.K_SPACE] and self.rect.bottom >= constants.distFromGround:
             self.gravity = -6
+        if keys[pygame.K_LSHIFT] and self.box:
+            if not self.prevClick:
+                self.dropBox()
+                self.prevClick = 1
+        else: self.prevClick = 0
 
     def apply_gravity(self):
         self.gravity += 0.5
@@ -70,8 +82,27 @@ class Player(pygame.sprite.Sprite):
         screen.blit(money_surf,moneyimg_rect)
         
 
-    def alterHunger(self, amount):
-        self.hunger.alterStatus(amount)   
+    def takeBox(self, newBox):
+        if not self.box:
+            self.box = newBox
+            self.image = self.img_withBox
+            deleteContainer(newBox)
+            self.speed -= 1
+            self.prevClick = 1
+            return True
+        else: return False
+
+    def dropBox(self):
+        self.image = self.normal
+        self.box.prevclick = 1
+        for i in containers:
+            i.prevclick = 1
+        back.addObject(self.box)
+        objects.add(self.box)
+        containers.append(self.box)
+        self.box.rect.midbottom = (self.rect.midbottom[0], self.rect.midbottom[1]-2)
+        self.box = None
+        self.speed += 1
 
 
 class Background(pygame.sprite.Sprite):
@@ -94,16 +125,16 @@ class Background(pygame.sprite.Sprite):
     def bg_input(self, player: Player, walls):
         keys = pygame.key.get_pressed()
         if (keys[pygame.K_d] or keys[pygame.K_RIGHT]) and self.rect.right > constants.worldWidth and player.rect.center[0] >= 0.5*constants.worldWidth:
-            self.move(-constants.playerSpeed)
+            self.move(-player.speed)
             for wall in walls:
                 if player.rect.colliderect(wall.rect): 
-                    self.move(constants.playerSpeed)
+                    self.move(player.speed)
                     break
         if (keys[pygame.K_a] or keys[pygame.K_LEFT]) and self.rect.left < 0 and player.rect.center[0] <= 0.5*constants.worldWidth:
-            self.move(constants.playerSpeed)
+            self.move(player.speed)
             for wall in walls:
                 if player.rect.colliderect(wall.rect): 
-                    self.move(-constants.playerSpeed)
+                    self.move(-player.speed)
                     break
 
     def update(self, player: Player, walls):
@@ -304,7 +335,7 @@ class Container(Interface):
             for j in range(int(self.dim[1])):
                 self.spots.append((InventorySlot((i*40,j*40)), (i*40,j*40)))
 
-    def update(self,player):
+    def update(self, player: Player):
         if self.draw(player):
             keys = pygame.key.get_pressed()
             if keys[pygame.K_w]:
@@ -316,6 +347,11 @@ class Container(Interface):
                     if nonOpen or self.open:
                         self.open = self.open ^ True # Toggle state of openness
                         self.prevclick = 1
+            elif keys[pygame.K_LSHIFT] and self.size == 4: # Player picks up the container
+                if not self.prevclick:
+                    player.takeBox(self)
+                    self.open = False
+                    self.prevClick = 1
             else: self.prevclick = 0
             if self.open:
                 for i in range(self.size):
@@ -392,6 +428,7 @@ class Chef(Interface):
         for i in range(len(constants.kitchenSelection)):
             self.plusbuttons.append(Button('images/GUI/plus.png','images/GUI/plus_white.png',(0,0),0.8))
             self.minusbuttons.append(Button('images/GUI/minus.png','images/GUI/minus_white.png',(0,0),0.8))
+        self.clearButton = Button('images/GUI/clearbutton.png','images/GUI/clearbutton_light.png',(0,0),1)
         self.orderButton = Button('images/GUI/orderbutton.png','images/GUI/orderbutton_light.png',(0,0),1)
         self.errorTextTime = 0
         self.errorText = ''
@@ -447,11 +484,14 @@ class Chef(Interface):
             text_surf = gamefont.render(f'price: {self.cost}$',False,(255,229,120))
             text_rect = text_surf.get_rect(center = (shop_rect.bottomright[0]-58,shop_rect.bottomright[1]-65))
             screen.blit(text_surf,text_rect) # Cost of the whole order
+            self.clearButton.rect.center = (shop_rect.bottomright[0]-58,shop_rect.bottomright[1]-220)
             self.orderButton.rect.center = (shop_rect.bottomright[0]-58,shop_rect.bottomright[1]-35)
             if self.errorTextTime:
                 text = gamefont.render(f'{self.errorText}',False,(255,255,255))
                 screen.blit(text,text.get_rect(midbottom = self.rect.midtop))
-
+            if self.clearButton.draw():
+                self.order = []
+                self.cost = 0
             if self.orderButton.draw():
                 if 0 < len(self.order) < 5:
                     if player.money - self.cost >= 0:
@@ -512,8 +552,12 @@ def renderItem(item: Item):
 def itemCreator(name: str, amount: int):
     item = constants.itemStats[name]
     return Item(item[0],(0,0),1,name,amount,item[2],item[3])
-    
 
+# Helper function for getting rid of containers  
+def deleteContainer(container: Container):
+    containers.remove(container)
+    back.objects.remove(container)
+    container.kill()
 
 
 
@@ -606,7 +650,7 @@ background = pygame.sprite.GroupSingle()
 background.add(back)
 
 player = pygame.sprite.GroupSingle()
-player.add(Player('Steve', foodbar, waterbar))
+player.add(Player('Frank', foodbar, waterbar))
 
 
 
@@ -656,12 +700,12 @@ while True:
 
         objects.update(player.sprite)
 
-        score_surf = gamefont.render(f'hunger is at {foodbar.percent}',False,(50,50,50))
+        score_surf = gamefont.render(f'player box: {player.sprite.box}',False,(50,50,50))
         score_rect = score_surf.get_rect(center = (750,50))
         screen.blit(score_surf,score_rect)
 
         if not moveLift or (back.rect.x + 1980): player.draw(screen) # Player vanishes inside the lift
-        player.update(background.sprite, walls)
+        if not moveLift: player.update(background.sprite, walls)
 
         inventory.draw()
         handItem.render()
@@ -674,4 +718,4 @@ while True:
         if resumeButton.draw(): gamemode = 'game'
 
     pygame.display.update()
-    clock.tick(160)
+    clock.tick(60)
