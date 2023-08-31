@@ -4,25 +4,6 @@
 # Models
 
 
-# Container for water
-class WaterTank:
-    # Determine how much water the tank can hold and what is the initial amount
-    def __init__(self, maxAmount=100, startWith=100):
-        self.max = maxAmount
-        self.amount = min(startWith, maxAmount)
-        print('A tank with water: ' + str(self.amount))
-
-    # Fill the tank to full
-    def fill(self):
-        self.amount = self.max
-        print('tank filled')
-
-    # Remove some amount of liquid
-    def pour(self, quantity):
-        self.amount = max(0, self.amount - quantity)
-        print('tank poured, amount left: ' + str(self.amount))
-
-
 # Non-playable characters that can be interacted with
 class NPC:
     pass
@@ -88,30 +69,6 @@ class LoadingBridge(Area):
             delivery = self.ready.pop(0)
             self.current = delivery
             print('order is now accessible')
-
-
-# For filling water canisters
-class WaterTap(Area):
-    def __init__(self):
-        self.tank = WaterTank(100,100)
-
-    # Place a tank under the tap, does nothing if a tank is already there
-    def place(self, newTank: WaterTank):
-        if self.tank == None:
-            self.tank = newTank
-            print('tank placed under the tap')
-
-    # Remove a potential tank and return it
-    def pickUp(self):
-        if self.tank != None:
-            toDel = self.tank
-            self.tank = None
-            print('tank picked up')
-            return toDel
-
-    def fill(self):
-        if self.tank != None:
-            self.tank.fill()
 
 
 # Integration and testing facilities is where spacecrafts and utilities are made

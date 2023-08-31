@@ -23,6 +23,8 @@ class Player(pygame.sprite.Sprite):
         self.flipped = pygame.transform.flip(self.image, True, False)
         self.img_withBox = pygame.transform.rotozoom(pygame.image.load('images/playerWithBox.png').convert_alpha(),0,1.5)
         self.flipped_withBox = pygame.transform.flip(self.img_withBox,True,False)
+        self.img_withTank = pygame.transform.rotozoom(pygame.image.load('images/playerWithTank.png').convert_alpha(),0,1.5)
+        self.flipped_withTank = pygame.transform.flip(self.img_withTank,True,False)
         self.rect = self.image.get_rect(midbottom = (constants.worldWidth/2, constants.distFromGround))
         self.speed = constants.playerSpeed
         self.gravity = 0
@@ -32,14 +34,15 @@ class Player(pygame.sprite.Sprite):
         self.money = constants.startingCash
         self.money_img = pygame.transform.rotozoom(pygame.image.load('images/GUI/money_icon.png').convert_alpha(),0,1.5)
         self.money_rect = self.money_img.get_rect(topleft = (10,90))
-        self.box: Container = None
+        self.burden: Interface = None
         self.prevClick = 1
 
     # All keyboard inputs from players are handled here
     def player_input(self, world, walls):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a] or keys[pygame.K_LEFT]:
-            if self.box: self.image = self.flipped_withBox
+            if type(self.burden) == Container: self.image = self.flipped_withBox
+            elif type(self.burden) == WaterTank: self.image = self.flipped_withTank
             else: self.image = self.flipped
             if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.left > 5:
                 self.rect.x -= self.speed
@@ -48,7 +51,8 @@ class Player(pygame.sprite.Sprite):
                         self.rect.x += self.speed
                         break
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-            if self.box: self.image = self.img_withBox
+            if type(self.burden) == Container: self.image = self.img_withBox
+            elif type(self.burden) == WaterTank: self.image = self.img_withTank
             else: self.image = self.normal
             if (world.rect.right <= constants.worldWidth or world.rect.left >= 0) and self.rect.right < constants.worldWidth-5:
                 self.rect.x += self.speed
@@ -58,7 +62,7 @@ class Player(pygame.sprite.Sprite):
                         break
         if keys[pygame.K_SPACE] and self.rect.bottom >= constants.distFromGround:
             self.gravity = -6
-        if keys[pygame.K_LSHIFT] and self.box:
+        if keys[pygame.K_LSHIFT] and self.burden:
             if not self.prevClick:
                 self.dropBox()
                 self.prevClick = 1
@@ -71,8 +75,9 @@ class Player(pygame.sprite.Sprite):
             self.rect.bottom = constants.distFromGround
 
     def update(self, world, walls):
-        self.player_input(world, walls)
-        self.apply_gravity()
+        if not moveLift: 
+            self.player_input(world, walls)
+            self.apply_gravity()
         self.hunger.draw()
         self.thirst.draw()
         # Money
@@ -82,26 +87,31 @@ class Player(pygame.sprite.Sprite):
         screen.blit(money_surf,moneyimg_rect)
         
 
-    def takeBox(self, newBox):
-        if not self.box:
-            self.box = newBox
-            self.image = self.img_withBox
-            deleteContainer(newBox)
+    def takeBox(self, newLoad):
+        if not self.burden:
+            self.burden = newLoad
+            if type(newLoad) == Container:
+                self.image = self.img_withBox
+            else:
+                self.image = self.img_withTank
+            deleteContainer(newLoad)
             self.speed -= 1
-            self.prevClick = 1
+            self.prevClick = 1  
             return True
         else: return False
 
     def dropBox(self):
+        if type(self.burden) == Container:
+            self.burden.prevclick = 1
+            for i in containers:
+                i.prevclick = 1
+            containers.append(self.burden)
+        else: self.burden.prevclick = 1
         self.image = self.normal
-        self.box.prevclick = 1
-        for i in containers:
-            i.prevclick = 1
-        back.addObject(self.box)
-        objects.add(self.box)
-        containers.append(self.box)
-        self.box.rect.midbottom = (self.rect.midbottom[0], self.rect.midbottom[1]-2)
-        self.box = None
+        back.addObject(self.burden)
+        objects.add(self.burden)
+        self.burden.rect.midbottom = (self.rect.midbottom[0], self.rect.midbottom[1]-2)
+        self.burden = None
         self.speed += 1
 
 
@@ -156,14 +166,15 @@ class Item:
 class HandItem:
     def __init__(self):
         self.item: Item = None
-        self.prevClick = 0
+        self.prevClick = 1
 
     def render(self):
         if self.item:
             pos = pygame.mouse.get_pos()
             self.item.rect = (pos[0]-14,pos[1]-16)
             renderItem(self.item)
-            if player.sprite.rect.collidepoint(pos) and (self.item.food or self.item.drink):
+            keys = pygame.key.get_pressed()
+            if player.sprite.rect.collidepoint(pos) and (self.item.food or self.item.drink): # Foods and drinks
                 if self.item.food:
                     eat_surf = gamefont_small.render(f'eat {self.item.name} (E)',False,(0,0,0))
                     eat_rect = eat_surf.get_rect(bottomleft = (pos))
@@ -172,8 +183,7 @@ class HandItem:
                     drink_surf = gamefont_small.render(f'drink {self.item.name} (E)',False,(0,0,0))
                     drink_rect = drink_surf.get_rect(bottomleft = (pos))
                     screen.blit(drink_surf,drink_rect)
-                keys = pygame.key.get_pressed()
-                if keys[pygame.K_e] or pygame.mouse.get_pressed()[0]:
+                if keys[pygame.K_e] or pygame.mouse.get_pressed()[0]: # Eat/Drink item
                     if not self.prevClick:
                         self.prevClick = 1
                         if self.item.food:
@@ -183,6 +193,22 @@ class HandItem:
                         self.item.amount -= 1
                         if self.item.amount < 1: self.item = None
                 else: self.prevClick = 0
+            elif self.item.name == "cardboard box": # Item in hand is a box
+                drop_surf = gamefont_small.render(f'assemble box (E)',False,(0,0,0))
+                drop_rect = drop_surf.get_rect(bottomleft = (pos))
+                screen.blit(drop_surf,drop_rect)
+                if keys[pygame.K_e] or pygame.mouse.get_pressed()[0]:
+                    if not self.prevClick:
+                        self.prevClick = 1
+                        box = Container('images/interact/box.png','images/interact/box_white.png',0,0,1.5,'box',4)
+                        box.rect.midbottom = (player.sprite.rect.midbottom[0], player.sprite.rect.midbottom[1]-2)
+                        back.addObject(box)
+                        objects.add(box)
+                        containers.append(box)
+                        if self.item.amount > 1: self.item.amount -= 1
+                        else: self.item = None
+                else: self.prevClick = 0
+                    
 
 # Class for clickable objects
 class Button(Interactable):
@@ -275,6 +301,7 @@ class InventorySlot(pygame.sprite.Sprite):
                         prevHand = handItem.item
                         handItem.item = self.occupant
                         self.occupant = prevHand
+                        handItem.prevClick = 1
             elif mouse[2] and handItem.item:
                 if not self.prevclick:
                     self.prevclick = 1
@@ -329,7 +356,7 @@ class Container(Interface):
         self.prevclick = 1 # Prevention of flashing inventory while holding w. previous action must be not clicked (=0)
         self.name = name
         self.size = size
-        self.spots: list[(InventorySlot,(int, int))] = []
+        self.spots: list[(InventorySlot,(int, int))] = [] # Slot and it's pos
         self.dim = self.factors(size)
         for i in range(int(self.dim[0])):
             for j in range(int(self.dim[1])):
@@ -354,8 +381,22 @@ class Container(Interface):
                     self.prevClick = 1
             else: self.prevclick = 0
             if self.open:
+                empty = True
                 for i in range(self.size):
                     self.spots[i][0].draw((self.rect.x + self.spots[i][1][0], self.rect.y - 250 + self.spots[i][1][1]))
+                    if self.spots[i][0].occupant: empty = False
+                if empty and self.size == 4: # Folding a empty cardboard box
+                    foldButton = Button('images/GUI/foldbutton.png','images/GUI/foldbutton_light.png',(self.rect.topright[0]-8, self.rect.topright[1] - 266),1)
+                    if foldButton.draw():
+                        if not handItem.item:
+                            handItem.item = itemCreator('cardboard box',1)
+                            deleteContainer(self)
+                        elif handItem.item.name == 'cardboard box' and handItem.item.amount < constants.itemStats['cardboard box'][1]:
+                            handItem.item.amount += 1
+                            deleteContainer(self)
+                        handItem.prevClick = 1
+                        
+
         else: self.open = False
 
     # Adds an item to a selected slot
@@ -381,6 +422,65 @@ class Container(Interface):
         elif not n % 3: dimensions = (n/3,3)
         elif not n % 2: dimensions = (2,n/2)
         return dimensions
+
+# Container for water
+class WaterTank(Interface):
+    def __init__(self, pic, picW, pos, scale):
+        super().__init__(pic,picW,pos[0],pos[1],scale)
+        self.amount = 100 # Max = 100
+        self.prevclick = 1
+
+    def update(self,player: Player):
+        if self.draw(player):
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_LSHIFT]: 
+                if not self.prevclick:
+                    player.takeBox(self)
+                    self.prevClick = 1
+            else: self.prevclick = 0
+
+
+    # Fill the tank to full
+    def fill(self):
+        self.amount = 100
+
+    # Remove some amount of liquid
+    def pour(self, quantity):
+        self.amount = max(0, self.amount - quantity)
+
+# For filling water canisters
+class WaterTap(Interface):
+    def __init__(self, pos, scale):
+        super().__init__('images/interact/tap.png','images/interact/tap_white.png',pos[0],pos[1],scale)
+        self.tank = None
+        self.prevClick = 1
+
+    def update(self,player: Player):
+        if self.tank: self.tank.rect.midbottom = self.rect.midbottom
+        if self.draw(player):
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_LSHIFT]:
+                if not self.prevClick:
+                    if type(player.burden) == WaterTank and not self.tank:
+                        self.tank = player.burden
+                        player.dropBox()
+                        self.tank.prevClick = 1
+                    elif not player.burden and self.tank:
+                        player.takeBox(self.tank)
+                        self.tank = None
+                    self.prevClick = 1
+            else: self.prevClick = 0
+
+    # Remove a potential tank and return it
+    def pickUp(self):
+        if self.tank:
+            toDel = self.tank
+            self.tank = None
+            return toDel
+
+    def fill(self):
+        if self.tank:
+            self.tank.fill()
 
 # Deletes inserted items
 class Garbage(Interface):
@@ -553,12 +653,12 @@ def itemCreator(name: str, amount: int):
     item = constants.itemStats[name]
     return Item(item[0],(0,0),1,name,amount,item[2],item[3])
 
-# Helper function for getting rid of containers  
-def deleteContainer(container: Container):
-    containers.remove(container)
+# Helper function for getting rid of containers and tanks
+def deleteContainer(container: Interface):
+    if type(container) == Container:
+        containers.remove(container)
     back.objects.remove(container)
     container.kill()
-
 
 
 # THE CODE FOR THE GAME STARTS HERE:
@@ -611,6 +711,9 @@ cube3 = Container('images/interact/cube.png','images/interact/cube_white.png',-1
 box = Container('images/interact/box.png','images/interact/box_white.png',-1150,322,1.5,'box',4)
 containers: list[Container] = [chest1,chest2,chest3,barrel1,barrel2,barrel3,cube1,cube2,cube3,crate1,crate2,crate3,box]
 
+tank = WaterTank('images/interact/tank.png','images/interact/tank_white.png',(300,429),1.5)
+
+tap = WaterTap((1129,409),1.5)
 chef = Chef('images/interact/chef.png','images/interact/chef_white.png',-1710,-47,1.5)
 
 garbage = Garbage('images/interact/garbage.png','images/interact/garbage_white.png',629,388,1.5)
@@ -635,8 +738,11 @@ objects = pygame.sprite.Group() # "Background" updates objects' locations correc
 back.addObject(liftOne)
 back.addObject(liftTwo)
 back.addObject(liftThree)
+back.addObject(tap)
 back.addObject(chef)
 back.addObject(garbage)
+back.addObject(tank)
+objects.add(tap)
 objects.add(chef)
 objects.add(garbage)
 for wall in walls:
@@ -644,6 +750,7 @@ for wall in walls:
 for container in containers:
         back.addObject(container)
         objects.add(container)
+objects.add(tank)
 
 
 background = pygame.sprite.GroupSingle()
@@ -700,12 +807,12 @@ while True:
 
         objects.update(player.sprite)
 
-        score_surf = gamefont.render(f'player box: {player.sprite.box}',False,(50,50,50))
+        score_surf = gamefont.render(f'tap tank: {tap.tank}',False,(50,50,50))
         score_rect = score_surf.get_rect(center = (750,50))
         screen.blit(score_surf,score_rect)
 
         if not moveLift or (back.rect.x + 1980): player.draw(screen) # Player vanishes inside the lift
-        if not moveLift: player.update(background.sprite, walls)
+        player.update(background.sprite, walls)
 
         inventory.draw()
         handItem.render()
@@ -718,4 +825,4 @@ while True:
         if resumeButton.draw(): gamemode = 'game'
 
     pygame.display.update()
-    clock.tick(60)
+    clock.tick(160)

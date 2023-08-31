@@ -13,7 +13,7 @@ startingCash = 1000
 
 
 # Item stats: images, stack size, food, drink
-itemStats = {'cardboard box': ('images/item/cardboard.png', 5, 0, 0), # PIC TBA
+itemStats = {'cardboard box': ('images/item/cardboard.png', 5, 0, 0),
              'empty bottle': ('images/item/emptybottle.png', 5, 0, 0),
              'water bottle': ('images/item/waterbottle.png', 5, 0, 6),
              'fizzy drink': ('images/item/fizzydrink.png', 5, 0, 8),
