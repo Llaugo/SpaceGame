@@ -10,7 +10,7 @@ The purpose of this project is to have fun programming and playing while learnin
 
 Build Status
 
-Just getting started. game.py contains the runnable code, but the game itself isn't ready.
+Just getting started. game.py contains the runnable code, but the game itself isn't ready. (Use W to open containers and Shift to pick them up.)
 
 Style
 
